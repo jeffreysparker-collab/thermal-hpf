@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#050507">
+<link rel="manifest" href="manifest.json">
+<title>Thermal HFP</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+/* Safari 120hz unlock */
+.hz-unlock{width:1px;height:1px;position:fixed;top:-9px;left:-9px;pointer-events:none;will-change:transform;animation:_u 0.00833s infinite linear;}
+@keyframes _u{0%{transform:translateY(0) translateZ(0);}100%{transform:translateY(0.1px) translateZ(0);}}
+
+:root{
+  --bg:#050507;
+  --bg2:#09090d;
+  --surface:#0e0e14;
+  --surface2:#13131a;
+  --border:#1e1e28;
+  --border2:#171720;
+  --text:#dddae8;
+  --text-dim:#5a5870;
+  --text-mid:#9896a8;
+  --blue:#3b82f6;
+  --blue-dim:#1e3a6e;
+  --blue-glow:#3b82f622;
+  --yellow:#f5c842;
+  --yellow-dim:#7a6010;
+  --yellow-glow:#f5c84218;
+  --green:#34d399;
+  --red:#f87171;
+  --orange:#fb923c;
+  --r:10px;
+  --font-head:'Syne',sans-serif;
+  --font-mono:'Space Mono','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-mono);overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none;}
+
+/* ── SCREENS ─────────────────────────────────────────────── */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;opacity:0;pointer-events:none;transition:opacity 0.3s ease;}
+.screen.active{opacity:1;pointer-events:all;}
+.screen.scroll{overflow-y:auto;justify-content:flex-start;padding-top:60px;touch-action:pan-y;}
+
+/* ── HOME ────────────────────────────────────────────────── */
+#s-home{background:radial-gradient(ellipse 80% 60% at 50% 70%,#0a0a18 0%,var(--bg) 70%);}
+.home-mark{width:80px;height:80px;border-radius:50%;margin-bottom:28px;flex-shrink:0;
+  background:conic-gradient(from 200deg,#3b82f6 0%,#f5c842 45%,#3b82f6 90%);
+  box-shadow:0 0 0 1px #3b82f625,0 0 40px #3b82f620,0 0 80px #3b82f610;
+  animation:mark-spin 12s linear infinite;}
+@keyframes mark-spin{to{transform:rotate(360deg);}}
+.home-title{font-family:var(--font-head);font-size:42px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:6px;
+  background:linear-gradient(135deg,var(--blue) 0%,#a78bfa 50%,var(--yellow) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.home-sub{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:36px;}
+.home-desc{font-size:11px;line-height:1.9;color:var(--text-dim);text-align:center;max-width:300px;margin-bottom:36px;}
+.home-desc em{color:var(--text-mid);font-style:normal;}
+#fps-badge{font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:20px;}
+
+/* ── SETTINGS ────────────────────────────────────────────── */
+#s-settings{gap:12px;justify-content:center;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;width:100%;max-width:420px;}
+.card-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
+.row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);font-size:11px;}
+.row:last-child{border-bottom:none;padding-bottom:0;}
+.row-label{color:var(--text-dim);font-size:10px;}
+.sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:10px;padding:5px 8px;outline:none;-webkit-appearance:none;min-width:100px;text-align:right;touch-action:manipulation;}
+.num-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:10px;padding:5px 8px;outline:none;width:80px;text-align:right;touch-action:manipulation;}
+.num-input:focus{border-color:var(--blue);}
+
+/* ── BUTTONS ─────────────────────────────────────────────── */
+.btn-p{padding:14px 32px;background:var(--blue);color:#fff;border:none;border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all 0.18s;min-width:160px;touch-action:manipulation;}
+.btn-p:active{transform:scale(0.96);opacity:0.85;}
+.btn-g{padding:12px 22px;background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:100px;font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all 0.18s;touch-action:manipulation;}
+.btn-g:active{color:var(--text);border-color:var(--text-mid);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+
+/* ── SOAK SCREEN ─────────────────────────────────────────── */
+#s-soak{background:#fff;padding:0;}
+#soak-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.soak-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:max(36px,calc(env(safe-area-inset-bottom)+24px));pointer-events:none;}
+.soak-top{position:absolute;top:0;left:0;right:0;padding:max(16px,env(safe-area-inset-top,16px)) 20px 16px;background:linear-gradient(#00000066,transparent);pointer-events:none;}
+.soak-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#00000080;font-family:var(--font-mono);}
+#soak-status{font-size:13px;color:#00000099;font-family:var(--font-mono);margin-top:4px;letter-spacing:1px;}
+#soak-countdown{font-family:var(--font-head);font-size:72px;font-weight:800;color:#00000015;letter-spacing:-3px;line-height:1;pointer-events:none;}
+#soak-begin-btn{pointer-events:all;padding:16px 40px;background:rgba(0,0,0,0.12);border:1.5px solid rgba(0,0,0,0.25);border-radius:100px;color:rgba(0,0,0,0.7);font-family:var(--font-mono);font-size:13px;letter-spacing:1.5px;cursor:pointer;touch-action:manipulation;}
+#soak-begin-btn:active{background:rgba(0,0,0,0.22);}
+
+/* ── TRIAL SCREEN ────────────────────────────────────────── */
+#s-trial{background:#000;padding:0;}
+#trial-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:transform;transform:translateZ(0);}
+.trial-top{position:absolute;top:0;left:0;right:0;padding:max(14px,env(safe-area-inset-top,14px)) 18px 14px;background:linear-gradient(#000000cc,transparent);pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start;}
+.trial-meta{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#ffffff40;}
+.trial-sub{font-size:10px;color:#ffffff35;margin-top:3px;}
+.trial-dots{display:flex;gap:4px;align-items:center;}
+.tdot{width:6px;height:6px;border-radius:50%;background:#ffffff15;transition:background 0.25s;}
+.tdot.done{background:var(--yellow);}
+.tdot.active{background:#ffffffaa;}
+
+/* HUD bottom */
+.trial-hud{position:absolute;bottom:0;left:0;right:0;padding:0 22px;padding-bottom:max(28px,calc(env(safe-area-inset-bottom)+16px));background:linear-gradient(transparent,#00000060 15%,#000000b0);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;}
+
+/* Slider */
+.sl-wrap{width:100%;position:relative;height:56px;display:flex;align-items:center;pointer-events:all;cursor:grab;touch-action:none;}
+.sl-wrap:active{cursor:grabbing;}
+.sl-track{position:absolute;left:0;right:0;height:4px;border-radius:2px;background:#ffffff15;}
+.sl-fill-blue{height:100%;border-radius:2px 0 0 2px;background:linear-gradient(to right,#1e3a8a,var(--blue));pointer-events:none;}
+.sl-fill-yellow{position:absolute;right:0;height:100%;border-radius:0 2px 2px 0;background:linear-gradient(to right,var(--yellow-dim),var(--yellow));pointer-events:none;}
+.sl-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 38% 36%,#e0eeff,var(--blue) 55%,#0a1a40);box-shadow:0 0 0 2px #00000099,0 0 20px #3b82f660;pointer-events:none;}
+.sl-wrap.dragging .sl-thumb{box-shadow:0 0 0 2px #00000099,0 0 36px #3b82f699;}
+.sl-labels{display:flex;justify-content:space-between;font-size:8px;color:#ffffff25;letter-spacing:1px;margin-top:-2px;pointer-events:none;width:100%;}
+
+/* Null indicator */
+#null-badge{font-family:var(--font-head);font-size:28px;font-weight:700;color:#fff;letter-spacing:-0.5px;pointer-events:none;margin-bottom:4px;}
+#null-label{font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff30;margin-bottom:8px;pointer-events:none;}
+#hz-badge{position:absolute;top:50%;right:18px;transform:translateY(-50%);font-size:9px;letter-spacing:1.5px;color:#ffffff20;pointer-events:none;}
+
+/* Confirm button */
+#confirm-btn{pointer-events:all;margin-top:4px;padding:14px 36px;background:var(--yellow);color:#1a0e00;border:none;border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;touch-action:manipulation;}
+#confirm-btn:active{transform:scale(0.96);}
+
+/* IR temp prompt */
+.ir-overlay{position:absolute;inset:0;background:#000000dd;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:100;padding:32px;}
+.ir-title{font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--yellow);letter-spacing:-0.5px;}
+.ir-body{font-size:11px;color:var(--text-dim);text-align:center;line-height:1.8;max-width:260px;}
+.ir-input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:16px;padding:12px 16px;outline:none;width:160px;text-align:center;touch-action:manipulation;}
+.ir-input:focus{border-color:var(--yellow);}
+.state-pill{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+.pill{font-size:9px;letter-spacing:1.5px;padding:4px 10px;border-radius:100px;border:1px solid var(--border);}
+.pill.nominal{color:var(--green);border-color:#34d39940;background:#34d39910;}
+.pill.fair{color:var(--yellow);border-color:#f5c84240;background:#f5c84210;}
+.pill.serious{color:var(--orange);border-color:#fb923c40;background:#fb923c10;}
+.pill.critical{color:var(--red);border-color:#f8717140;background:#f8717110;}
+
+/* ── RESULTS ─────────────────────────────────────────────── */
+#s-results{gap:12px;justify-content:flex-start;padding-top:52px;}
+.res-title{font-family:var(--font-head);font-size:30px;font-weight:800;color:var(--blue);letter-spacing:-1px;width:100%;max-width:480px;}
+.res-sub{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-top:2px;width:100%;max-width:480px;}
+#chart-wrap{width:100%;max-width:480px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 8px 8px 44px;}
+.chart-ylabel{position:absolute;left:6px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+#res-chart{width:100%;height:160px;}
+#trial-table{width:100%;max-width:480px;border-collapse:collapse;}
+#trial-table th,#trial-table td{font-size:9px;padding:7px 8px;text-align:left;border-bottom:1px solid var(--border2);}
+#trial-table th{color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;font-weight:400;}
+#trial-table td{color:var(--text-mid);font-variant-numeric:tabular-nums;}
+#trial-table td.val{color:var(--text);}
+.thermal-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;}
+.export-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;max-width:480px;padding-bottom:60px;}
+
+/* ── ROTATE HINT ─────────────────────────────────────────── */
+.rotate-hint{display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-size:11px;color:var(--text-dim);}
+@media(orientation:landscape){.rotate-hint{display:flex;}}
+
+/* ── MISC ────────────────────────────────────────────────── */
+#tap-flash{position:absolute;inset:0;background:#ffffff;opacity:0;pointer-events:none;transition:opacity 0.05s;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="hz-unlock"></div>
+<div class="rotate-hint">
+  <div style="font-size:44px;animation:ra 2s ease-in-out infinite">📱</div>
+  <div>Rotate to portrait</div>
+</div>
+@keyframes ra{0%,100%{transform:rotate(90deg)}40%,60%{transform:rotate(0deg)}}
+
+<!-- HOME -->
+<div class="screen active" id="s-home">
+  <div class="home-mark"></div>
+  <div class="home-title">Thermal HFP</div>
+  <div class="home-sub">Blue · Yellow · Flicker Null</div>
+  <p class="home-desc">Tracks how your OLED's <em>blue channel output</em> shifts as the phone heats up. Uses heterochromatic flicker photometry — adjust the slider until flicker vanishes, then log the null point against device temperature.</p>
+  <div id="fps-badge">measuring display…</div>
+  <div class="btn-row">
+    <button class="btn-p" onclick="goSettings()">Configure →</button>
+  </div>
+  <p style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:20px;line-height:1.8;max-width:280px">Research only · not a medical device<br>Max brightness · True Tone &amp; Night Shift <strong style="color:var(--text-mid)">OFF</strong></p>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen scroll" id="s-settings">
+  <div class="card" style="max-width:420px;width:100%">
+    <div class="card-label">Protocol</div>
+    <div class="row"><span class="row-label">Soak duration (sec)</span><input class="num-input" id="set-soak" type="number" min="30" max="600" value="120"></div>
+    <div class="row"><span class="row-label">Trials per session</span>
+      <select class="sel" id="set-trials"><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="10">10</option></select></div>
+    <div class="row"><span class="row-label">Soak between trials (sec)</span><input class="num-input" id="set-intersoak" type="number" min="0" max="300" value="60"></div>
+    <div class="row"><span class="row-label">Flicker rate (Hz)</span>
+      <select class="sel" id="set-hz"><option value="10">10 Hz</option><option value="12">12 Hz</option><option value="15" selected>15 Hz</option><option value="20">20 Hz</option><option value="25">25 Hz</option></select></div>
+  </div>
+  <div class="card" style="max-width:420px;width:100%">
+    <div class="card-label">Stimulus Colors</div>
+    <div class="row"><span class="row-label">Blue channel RGB</span><input class="num-input" id="set-blue" type="text" value="0,0,255" style="width:100px"></div>
+    <div class="row"><span class="row-label">Yellow channel RGB</span><input class="num-input" id="set-yellow" type="text" value="255,200,0" style="width:100px"></div>
+    <div class="row"><span class="row-label">Yellow luminance (0–1)</span><input class="num-input" id="set-ylum" type="number" min="0.1" max="1" step="0.05" value="0.6"></div>
+    <div class="row"><span class="row-label">Disk size (% screen)</span><input class="num-input" id="set-disk" type="number" min="10" max="80" value="30"></div>
+  </div>
+  <div class="card" style="max-width:420px;width:100%;font-size:10px;color:var(--text-dim);line-height:1.8">
+    <div class="card-label">Notes</div>
+    Flicker rate should be above ~10 Hz to isolate luminance channel. Yellow luminance sets the fixed reference — blue slider adjusts to find the null. IR thermometer readings entered manually between trials.
+  </div>
+  <div class="btn-row">
+    <button class="btn-g" onclick="showScreen('s-home')">← Back</button>
+    <button class="btn-p" onclick="startSoak(true)">Start →</button>
+  </div>
+</div>
+
+<!-- SOAK -->
+<div class="screen" id="s-soak">
+  <canvas id="soak-canvas"></canvas>
+  <div class="soak-top">
+    <div class="soak-label">Heating phase</div>
+    <div id="soak-status">Full white · heating device</div>
+  </div>
+  <div class="soak-ui">
+    <div id="soak-countdown">—</div>
+    <button id="soak-begin-btn" onclick="soakDone()">Skip →</button>
+  </div>
+</div>
+
+<!-- TRIAL -->
+<div class="screen" id="s-trial">
+  <canvas id="trial-canvas"></canvas>
+  <div id="tap-flash"></div>
+  <div class="trial-top">
+    <div>
+      <div class="trial-meta" id="trial-num">Trial 1</div>
+      <div class="trial-sub" id="trial-inst">Drag slider · minimize flicker · confirm</div>
+    </div>
+    <div class="trial-dots" id="trial-dots"></div>
+  </div>
+  <div id="hz-badge"></div>
+  <div class="trial-hud">
+    <div id="null-badge">—</div>
+    <div id="null-label">BLUE LUMINANCE NULL</div>
+    <div class="sl-wrap" id="sl-wrap">
+      <div class="sl-track">
+        <div class="sl-fill-blue" id="sl-fill-blue"></div>
+      </div>
+      <div class="sl-fill-yellow" id="sl-fill-yellow" style="width:0%;right:0;height:100%;position:absolute;border-radius:2px;pointer-events:none;background:linear-gradient(to right,var(--yellow-dim),var(--yellow));"></div>
+      <div class="sl-thumb" id="sl-thumb"></div>
+    </div>
+    <div class="sl-labels"><span>← more blue</span><span>more yellow →</span></div>
+    <button id="confirm-btn" onclick="confirmTrial()">Log null point ✓</button>
+  </div>
+</div>
+
+<!-- IR PROMPT OVERLAY (inside s-trial) -->
+<div class="ir-overlay hidden" id="ir-overlay">
+  <div class="ir-title">Log Trial</div>
+  <div class="ir-body">Point your IR thermometer at the phone back.<br>Enter the reading below.</div>
+  <div class="state-pill" id="state-pills"></div>
+  <input class="ir-input" id="ir-temp-input" type="number" step="0.1" placeholder="°C or °F">
+  <div class="btn-row">
+    <button class="btn-g" onclick="skipIR()">Skip</button>
+    <button class="btn-p" onclick="saveIR()">Save →</button>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="screen scroll" id="s-results">
+  <div class="res-title">Results</div>
+  <div class="res-sub" id="res-sub">0 trials · —</div>
+  <div style="position:relative;width:100%;max-width:480px;" id="chart-outer">
+    <span class="chart-ylabel">Blue null (t)</span>
+    <div id="chart-wrap">
+      <canvas id="res-chart"></canvas>
+    </div>
+  </div>
+  <table id="trial-table">
+    <thead><tr>
+      <th>#</th><th>Time</th><th>Blue null</th><th>IR °</th><th>Thermal</th><th>Battery</th>
+    </tr></thead>
+    <tbody id="trial-tbody"></tbody>
+  </table>
+  <div class="export-row">
+    <button class="btn-g" onclick="resetApp()">← New session</button>
+    <button class="btn-p" onclick="exportCSV()">Export CSV</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════
+// DEFAULTS & SETTINGS
+// ════════════════════════════════════════════════════════════
+let CFG = {
+  soakSec: 120,
+  nTrials: 6,
+  interSoakSec: 60,
+  flickerHz: 15,
+  blueRGB: [0, 0, 255],
+  yellowRGB: [255, 200, 0],
+  yellowLum: 0.6,
+  diskPct: 0.30,
+};
+
+const GAMMA = 2.2;
+function lin(c8) {
+  const v = c8 / 255;
+  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, GAMMA);
+}
+function enc(vLin) {
+  const v = Math.max(0, Math.min(1, vLin));
+  const e = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / GAMMA) - 0.055;
+  return Math.round(e * 255);
+}
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let ST = {
+  trialIndex: 0,
+  trials: [],           // [{t, nullVal, irTemp, thermalState, batteryLevel, batteryState, timestamp}]
+  blueT: 0.5,           // current slider value (0=all yellow, 1=all blue)
+  animFrame: null,
+  soakTimer: null,
+  soakEnd: null,
+  isFirstSoak: true,
+  detectedHz: 120,
+  trialStartTs: null,
+  pendingNullVal: null,  // set when confirm is hit, waiting for IR
+};
+
+// ════════════════════════════════════════════════════════════
+// FPS DETECTION
+// ════════════════════════════════════════════════════════════
+(function detectFPS() {
+  let fc = 0, st = performance.now();
+  function tick(now) {
+    fc++;
+    if (now - st >= 1000) {
+      const fps = Math.round(fc * 1000 / (now - st));
+      fc = 0; st = now;
+      ST.detectedHz = fps >= 100 ? 120 : 60;
+      const color = fps >= 100 ? '#34d399' : '#f5c842';
+      const label = fps >= 100 ? `${fps} Hz ✓` : `${fps} Hz — 120Hz preferred`;
+      const b = document.getElementById('fps-badge');
+      if (b) { b.textContent = label; b.style.color = color; }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+// ════════════════════════════════════════════════════════════
+// SCREEN NAV
+// ════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id !== 's-soak' && id !== 's-trial') stopAll();
+}
+
+function stopAll() {
+  if (ST.animFrame) { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
+  if (ST.soakTimer) { clearInterval(ST.soakTimer); ST.soakTimer = null; }
+}
+
+// ════════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════════
+function goSettings() {
+  showScreen('s-settings');
+}
+
+function readSettings() {
+  CFG.soakSec = parseInt(document.getElementById('set-soak').value) || 120;
+  CFG.nTrials = parseInt(document.getElementById('set-trials').value) || 6;
+  CFG.interSoakSec = parseInt(document.getElementById('set-intersoak').value) || 60;
+  CFG.flickerHz = parseFloat(document.getElementById('set-hz').value) || 15;
+  CFG.yellowLum = parseFloat(document.getElementById('set-ylum').value) || 0.6;
+  CFG.diskPct = parseFloat(document.getElementById('set-disk').value) / 100 || 0.30;
+
+  const blueStr = document.getElementById('set-blue').value;
+  const yelStr = document.getElementById('set-yellow').value;
+  try { CFG.blueRGB = blueStr.split(',').map(Number); } catch(e) {}
+  try { CFG.yellowRGB = yelStr.split(',').map(Number); } catch(e) {}
+}
+
+// ════════════════════════════════════════════════════════════
+// SOAK PHASE
+// ════════════════════════════════════════════════════════════
+const soakCanvas = document.getElementById('soak-canvas');
+let soakCtx = null;
+
+function startSoak(isFirst) {
+  readSettings();
+  ST.isFirstSoak = isFirst;
+  if (isFirst) {
+    ST.trials = [];
+    ST.trialIndex = 0;
+  }
+
+  if (!soakCtx) soakCtx = soakCanvas.getContext('2d');
+  soakCanvas.width = window.innerWidth;
+  soakCanvas.height = window.innerHeight;
+
+  const dur = isFirst ? CFG.soakSec : CFG.interSoakSec;
+  ST.soakEnd = performance.now() + dur * 1000;
+
+  document.getElementById('soak-status').textContent =
+    isFirst
+      ? `Full white · heating device · trial 1 of ${CFG.nTrials} coming up`
+      : `Heating between trials · trial ${ST.trialIndex + 1} of ${CFG.nTrials} next`;
+
+  showScreen('s-soak');
+  soakCtx.fillStyle = '#ffffff';
+  soakCtx.fillRect(0, 0, soakCanvas.width, soakCanvas.height);
+
+  if (ST.soakTimer) clearInterval(ST.soakTimer);
+  ST.soakTimer = setInterval(soakTick, 250);
+}
+
+function soakTick() {
+  const remaining = Math.max(0, (ST.soakEnd - performance.now()) / 1000);
+  const el = document.getElementById('soak-countdown');
+  el.textContent = remaining > 0 ? Math.ceil(remaining) : '0';
+  if (remaining <= 0) {
+    clearInterval(ST.soakTimer);
+    ST.soakTimer = null;
+    soakDone();
+  }
+}
+
+function soakDone() {
+  if (ST.soakTimer) { clearInterval(ST.soakTimer); ST.soakTimer = null; }
+  startTrial();
+}
+
+// ════════════════════════════════════════════════════════════
+// TRIAL
+// ════════════════════════════════════════════════════════════
+const trialCanvas = document.getElementById('trial-canvas');
+let trialCtx = null;
+
+function startTrial() {
+  if (!trialCtx) trialCtx = trialCanvas.getContext('2d');
+  trialCanvas.width = window.innerWidth;
+  trialCanvas.height = window.innerHeight;
+
+  ST.blueT = 0.5;
+  ST.trialStartTs = Date.now();
+
+  // Update header
+  document.getElementById('trial-num').textContent = `Trial ${ST.trialIndex + 1} of ${CFG.nTrials}`;
+  document.getElementById('hz-badge').textContent = `${CFG.flickerHz} Hz`;
+
+  // Build dots
+  const dotWrap = document.getElementById('trial-dots');
+  dotWrap.innerHTML = '';
+  for (let i = 0; i < CFG.nTrials; i++) {
+    const d = document.createElement('div');
+    d.className = 'tdot' + (i < ST.trialIndex ? ' done' : i === ST.trialIndex ? ' active' : '');
+    dotWrap.appendChild(d);
+  }
+
+  // Init slider
+  initSlider();
+  updateNullBadge();
+
+  // Hide IR overlay
+  document.getElementById('ir-overlay').classList.add('hidden');
+
+  showScreen('s-trial');
+
+  if (ST.animFrame) cancelAnimationFrame(ST.animFrame);
+  ST.animFrame = requestAnimationFrame(trialLoop);
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDER
+// ════════════════════════════════════════════════════════════
+function initSlider() {
+  const wrap = document.getElementById('sl-wrap');
+  const thumb = document.getElementById('sl-thumb');
+  const fillBlue = document.getElementById('sl-fill-blue');
+  const fillYellow = document.getElementById('sl-fill-yellow');
+
+  let dragging = false;
+
+  function setPct(pct) {
+    ST.blueT = Math.max(0, Math.min(1, pct));
+    const p = ST.blueT * 100;
+    requestAnimationFrame(() => {
+      fillBlue.style.width = p + '%';
+      fillYellow.style.width = (100 - p) + '%';
+      thumb.style.left = p + '%';
+    });
+    updateNullBadge();
+  }
+
+  function fromX(cx) {
+    const r = wrap.getBoundingClientRect();
+    setPct((cx - r.left) / r.width);
+  }
+
+  // Remove old listeners by cloning
+  const nw = wrap.cloneNode(true);
+  wrap.parentNode.replaceChild(nw, wrap);
+  const newWrap = document.getElementById('sl-wrap');
+
+  newWrap.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    dragging = true;
+    newWrap.classList.add('dragging');
+    newWrap.setPointerCapture(e.pointerId);
+    fromX(e.clientX);
+  });
+  newWrap.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    fromX(e.clientX);
+  });
+  newWrap.addEventListener('pointerup', () => { dragging = false; newWrap.classList.remove('dragging'); });
+  newWrap.addEventListener('pointercancel', () => { dragging = false; newWrap.classList.remove('dragging'); });
+
+  setPct(0.5);
+}
+
+function updateNullBadge() {
+  document.getElementById('null-badge').textContent = ST.blueT.toFixed(3);
+}
+
+// ════════════════════════════════════════════════════════════
+// TRIAL RENDER LOOP
+// ════════════════════════════════════════════════════════════
+function trialLoop(ts) {
+  ST.animFrame = null;
+  if (!ST.trialStartTs) ST.trialStartTs = ts;
+
+  const W = trialCanvas.width, H = trialCanvas.height;
+  if (!W || !H) { ST.animFrame = requestAnimationFrame(trialLoop); return; }
+
+  const r = Math.round(Math.min(W, H) * CFG.diskPct);
+  const cx = W * 0.5, cy = H * 0.32;
+
+  // Phase: snap to display frame timing for clean flicker
+  // phase 0 = blue-scaled, phase 1 = yellow
+  const frameInterval = 1000 / ST.detectedHz;
+  const flickerPeriod = 1000 / CFG.flickerHz;
+  const phase = Math.floor((ts % flickerPeriod) / (flickerPeriod / 2));
+
+  trialCtx.fillStyle = '#000';
+  trialCtx.fillRect(0, 0, W, H);
+
+  let dc;
+  if (phase === 0) {
+    // Blue phase — scaled by slider t
+    const t = ST.blueT;
+    dc = CFG.blueRGB.map(c => enc(lin(c) * t));
+  } else {
+    // Yellow phase — fixed luminance reference
+    const yLum = CFG.yellowLum;
+    dc = CFG.yellowRGB.map(c => enc(lin(c) * yLum));
+  }
+
+  trialCtx.beginPath();
+  trialCtx.arc(cx, cy, r, 0, Math.PI * 2);
+  trialCtx.fillStyle = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
+  trialCtx.fill();
+
+  // Fixation dot
+  trialCtx.beginPath();
+  trialCtx.arc(cx, cy, 3, 0, Math.PI * 2);
+  trialCtx.fillStyle = '#000';
+  trialCtx.fill();
+
+  ST.animFrame = requestAnimationFrame(trialLoop);
+}
+
+// ════════════════════════════════════════════════════════════
+// CONFIRM → IR PROMPT
+// ════════════════════════════════════════════════════════════
+function confirmTrial() {
+  ST.pendingNullVal = ST.blueT;
+
+  // Grab phone state
+  const thermal = getThermalState();
+  const battery = getBatteryInfo();
+
+  // Show state pills
+  const pillWrap = document.getElementById('state-pills');
+  pillWrap.innerHTML = '';
+
+  const tp = document.createElement('div');
+  tp.className = `pill ${thermal.state}`;
+  tp.textContent = `thermal: ${thermal.state}`;
+  pillWrap.appendChild(tp);
+
+  const bp = document.createElement('div');
+  bp.className = 'pill';
+  bp.style.color = 'var(--text-mid)';
+  bp.textContent = `battery: ${battery.level !== null ? Math.round(battery.level * 100) + '%' : '—'}`;
+  pillWrap.appendChild(bp);
+
+  if (battery.state) {
+    const bsp = document.createElement('div');
+    bsp.className = 'pill';
+    bsp.style.color = 'var(--text-dim)';
+    bsp.textContent = battery.state;
+    pillWrap.appendChild(bsp);
+  }
+
+  document.getElementById('ir-temp-input').value = '';
+  document.getElementById('ir-overlay').classList.remove('hidden');
+}
+
+function skipIR() {
+  finalizeTrial(null);
+}
+
+function saveIR() {
+  const val = parseFloat(document.getElementById('ir-temp-input').value);
+  finalizeTrial(isNaN(val) ? null : val);
+}
+
+function finalizeTrial(irTemp) {
+  document.getElementById('ir-overlay').classList.add('hidden');
+
+  const thermal = getThermalState();
+  const battery = getBatteryInfo();
+
+  ST.trials.push({
+    index: ST.trialIndex + 1,
+    timestamp: new Date().toISOString(),
+    nullVal: ST.pendingNullVal,
+    irTemp: irTemp,
+    thermalState: thermal.state,
+    thermalRaw: thermal.raw,
+    batteryLevel: battery.level,
+    batteryState: battery.state,
+    flickerHz: CFG.flickerHz,
+    elapsedMs: Date.now() - (ST.sessionStart || Date.now()),
+  });
+
+  // Flash
+  const flash = document.getElementById('tap-flash');
+  flash.style.opacity = '0.25';
+  setTimeout(() => { flash.style.opacity = '0'; }, 120);
+
+  ST.trialIndex++;
+
+  if (ST.trialIndex >= CFG.nTrials) {
+    stopAll();
+    showResults();
+  } else {
+    startSoak(false);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// PHONE STATE
+// ════════════════════════════════════════════════════════════
+function getThermalState() {
+  // ProcessInfo.thermalState is not available in browser JS.
+  // We approximate via navigator.hardwareConcurrency + connection + deviceMemory
+  // and flag it clearly as estimated.
+  // The real signal would come from a native wrapper.
+  // For now we return 'unknown' so the data column is honest.
+  return { state: 'unknown', raw: null };
+}
+
+function getBatteryInfo() {
+  // Battery API — available on some browsers, not Safari
+  if (window._batteryCache) {
+    return { level: window._batteryCache.level, state: window._batteryCache.charging ? 'charging' : 'discharging' };
+  }
+  return { level: null, state: null };
+}
+
+// Try to init battery API
+if (navigator.getBattery) {
+  navigator.getBattery().then(b => {
+    window._batteryCache = b;
+    b.addEventListener('levelchange', () => { window._batteryCache = b; });
+    b.addEventListener('chargingchange', () => { window._batteryCache = b; });
+  }).catch(() => {});
+}
+
+// ════════════════════════════════════════════════════════════
+// RESULTS
+// ════════════════════════════════════════════════════════════
+function showResults() {
+  buildResultsTable();
+  drawResultsChart();
+  showScreen('s-results');
+}
+
+function buildResultsTable() {
+  const tbody = document.getElementById('trial-tbody');
+  tbody.innerHTML = '';
+
+  const thermalColors = {
+    nominal: '#34d399', fair: '#f5c842', serious: '#fb923c', critical: '#f87171', unknown: '#5a5870'
+  };
+
+  ST.trials.forEach(t => {
+    const tr = document.createElement('tr');
+    const tc = thermalColors[t.thermalState] || '#5a5870';
+    tr.innerHTML = `
+      <td class="val">${t.index}</td>
+      <td>${new Date(t.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
+      <td class="val">${t.nullVal.toFixed(4)}</td>
+      <td class="val">${t.irTemp !== null ? t.irTemp + '°' : '—'}</td>
+      <td><span class="thermal-dot" style="background:${tc}"></span>${t.thermalState}</td>
+      <td>${t.batteryLevel !== null ? Math.round(t.batteryLevel * 100) + '%' : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const n = ST.trials.length;
+  const first = ST.trials[0];
+  const last = ST.trials[n - 1];
+  const drift = n > 1 ? (last.nullVal - first.nullVal).toFixed(4) : '—';
+  document.getElementById('res-sub').textContent =
+    `${n} trial${n !== 1 ? 's' : ''} · null drift: ${drift}`;
+}
+
+function drawResultsChart() {
+  const canvas = document.getElementById('res-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.parentElement.clientWidth - 52;
+  const H = 160;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  const vals = ST.trials.map(t => t.nullVal);
+  const irVals = ST.trials.filter(t => t.irTemp !== null).map(t => t.irTemp);
+  const minV = Math.max(0, Math.min(...vals) - 0.05);
+  const maxV = Math.min(1, Math.max(...vals) + 0.05);
+
+  const pad = { t: 16, b: 24, l: 0, r: 16 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  function xAt(i) { return pad.l + (i / (vals.length - 1 || 1)) * pw; }
+  function yAt(v) { return pad.t + (1 - (v - minV) / (maxV - minV)) * ph; }
+
+  // Grid lines
+  ctx.strokeStyle = '#1e1e28';
+  ctx.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(frac => {
+    const v = minV + frac * (maxV - minV);
+    const y = yAt(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#5a5870'; ctx.font = '8px Space Mono,monospace';
+    ctx.fillText(v.toFixed(2), pad.l, y - 3);
+  });
+
+  // X axis labels
+  ctx.fillStyle = '#5a5870'; ctx.font = '8px Space Mono,monospace';
+  ST.trials.forEach((t, i) => {
+    ctx.fillText(`T${t.index}`, xAt(i) - 5, H - 6);
+  });
+
+  // IR temp overlay (if available)
+  if (irVals.length > 1) {
+    const irTrials = ST.trials.filter(t => t.irTemp !== null);
+    const minIR = Math.min(...irVals), maxIR = Math.max(...irVals);
+    const irRange = maxIR - minIR || 1;
+    ctx.strokeStyle = '#f8717155';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    irTrials.forEach((t, i) => {
+      const x = xAt(ST.trials.indexOf(t));
+      const y = pad.t + (1 - (t.irTemp - minIR) / irRange) * ph;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Null value line
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  vals.forEach((v, i) => {
+    const x = xAt(i), y = yAt(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Dots
+  vals.forEach((v, i) => {
+    const x = xAt(i), y = yAt(v);
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#3b82f6'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+  });
+
+  // Legend
+  ctx.fillStyle = '#3b82f6'; ctx.font = '8px Space Mono,monospace';
+  ctx.fillText('— blue null', W - 72, 12);
+  if (irVals.length > 1) {
+    ctx.fillStyle = '#f87171';
+    ctx.fillText('- - IR temp', W - 72, 24);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════════════════
+function exportCSV() {
+  const rows = [
+    ['thermal_hfp_export', new Date().toISOString()],
+    [],
+    ['flicker_hz', CFG.flickerHz],
+    ['yellow_luminance', CFG.yellowLum],
+    ['soak_sec', CFG.soakSec],
+    ['intersoak_sec', CFG.interSoakSec],
+    ['blue_rgb', CFG.blueRGB.join(';')],
+    ['yellow_rgb', CFG.yellowRGB.join(';')],
+    [],
+    ['trial', 'timestamp', 'elapsed_ms', 'null_blue_t', 'ir_temp', 'thermal_state', 'battery_level', 'battery_state', 'flicker_hz'],
+  ];
+
+  ST.trials.forEach(t => {
+    rows.push([
+      t.index, t.timestamp, t.elapsedMs || '',
+      t.nullVal.toFixed(6),
+      t.irTemp !== null ? t.irTemp : '',
+      t.thermalState,
+      t.batteryLevel !== null ? (t.batteryLevel * 100).toFixed(1) : '',
+      t.batteryState || '',
+      t.flickerHz,
+    ]);
+  });
+
+  const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `thermal-hfp-${Date.now()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ════════════════════════════════════════════════════════════
+// RESET
+// ════════════════════════════════════════════════════════════
+function resetApp() {
+  stopAll();
+  ST.trials = [];
+  ST.trialIndex = 0;
+  showScreen('s-home');
+}
+
+window.addEventListener('resize', () => {
+  soakCanvas.width = window.innerWidth;
+  soakCanvas.height = window.innerHeight;
+  if (soakCtx && document.getElementById('s-soak').classList.contains('active')) {
+    soakCtx.fillStyle = '#ffffff';
+    soakCtx.fillRect(0, 0, soakCanvas.width, soakCanvas.height);
+  }
+  if (trialCtx && document.getElementById('s-trial').classList.contains('active')) {
+    trialCanvas.width = window.innerWidth;
+    trialCanvas.height = window.innerHeight;
+  }
+});
+
+// Session start time
+ST.sessionStart = Date.now();
+</script>
+</body>
+</html>
