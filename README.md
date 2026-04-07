@@ -35,13 +35,6 @@ Blue OLED subpixels are the weakest link in OLED stacks. They require higher-ene
 - IR thermometer aimed at phone back (or tape a logger to it)
 - Dark room preferred
 
-## GitHub Pages Deployment
-
-1. Fork or push this repo
-2. Go to Settings → Pages → Source: main branch, root `/`
-3. Access at `https://yourusername.github.io/thermal-hfp/`
-4. On iPhone: Safari → Share → "Add to Home Screen" for full PWA install
-
 ## Notes
 
 - No service worker — no caching layer, always fresh from GitHub
