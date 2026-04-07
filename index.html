@@ -179,14 +179,23 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
     <div class="card-label">Stimulus</div>
     <div class="row"><span class="row-label">Blue RGB</span><input class="num-input" id="set-blue" type="text" value="0,0,255" style="width:100px"></div>
     <div class="row"><span class="row-label">Yellow RGB</span><input class="num-input" id="set-yellow" type="text" value="255,200,0" style="width:100px"></div>
-    <div class="row"><span class="row-label">Yellow luminance (0–1)</span><input class="num-input" id="set-ylum" type="number" min="0.05" max="1" step="0.05" value="0.60"></div>
-    <div class="row"><span class="row-label">Disk size (% min-dim)</span><input class="num-input" id="set-disk" type="number" min="10" max="80" value="30"></div>
+    <div class="row"><span class="row-label">Yellow luminance (0–1)</span><input class="num-input" id="set-ylum" type="number" min="0.05" max="1" step="0.05" value="0.85"></div>
+    <div class="row"><span class="row-label">Disk size (% min-dim)</span><input class="num-input" id="set-disk" type="number" min="10" max="100" value="80"></div>
+    <div class="row"><span class="row-label">Full-field flicker</span>
+      <select class="sel" id="set-fullfield">
+        <option value="1" selected>Yes (max contrast)</option>
+        <option value="0">No (disk only)</option>
+      </select></div>
+    <div class="row"><span class="row-label">White blast (ms)</span><input class="num-input" id="set-blast" type="number" min="0" max="2000" step="100" value="500"></div>
   </div>
   <div class="card" style="max-width:420px;width:100%;font-size:10px;color:var(--text-dim);line-height:1.8">
     <div class="card-label">Notes</div>
     Flicker advances by exact frame count — no timestamp drift.
     Yellow luminance is the fixed reference; blue slider finds the null.
-    IR readings entered manually after each trial.
+    Full-field mode flickers the entire screen for maximum photoreceptor contrast.
+    Trial sequence: pre-blast flicker → white blast → resume flicker for nulling.
+    Audio context runs during soak to draw DSP/CPU current alongside white screen heating.
+    IR readings entered manually post-hoc; temperature logged offline against trial timestamps.
     <span id="hz-note" style="display:block;margin-top:6px;color:var(--text-mid)"></span>
   </div>
   <div class="btn-row">
@@ -289,7 +298,8 @@ function parseRGB(str, fallback) {
 // ════════════════════════════════════════════════════════════
 let CFG = {
   soakSec:120, nTrials:6, interSoakSec:60, flickerHz:15,
-  blueRGB:[0,0,255], yellowRGB:[255,200,0], yellowLum:0.60, diskPct:0.30,
+  blueRGB:[0,0,255], yellowRGB:[255,200,0], yellowLum:0.85, diskPct:0.80,
+  fullField:true, blastMs:500,
 };
 
 // ════════════════════════════════════════════════════════════
@@ -301,9 +311,11 @@ let ST = {
   animFrame:null, soakTimer:null, soakEnd:null,
   sessionStart:Date.now(),
   detectedHz:120,
-  frameCount:0,      // FIX 5: exact frame counter
-  framesPerHalf:4,   // frames per half-cycle; recomputed from Hz settings
-  pendingSnapshot:null,  // FIX 10: snapshot at confirm, not at finalize
+  frameCount:0,
+  framesPerHalf:4,
+  pendingSnapshot:null,
+  blastActive:false,   // true during white-blast phase
+  audioCtx:null,       // thermal load audio context
 };
 
 // ════════════════════════════════════════════════════════════
@@ -404,6 +416,7 @@ function showScreen(id) {
 function stopAll() {
   if (ST.animFrame)  { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
   if (ST.soakTimer)  { clearInterval(ST.soakTimer); ST.soakTimer = null; }
+  stopAudioLoad();
 }
 
 function goSettings() { showScreen('s-settings'); updateHzNote(); }
@@ -416,11 +429,13 @@ function readSettings() {
   CFG.nTrials      = parseInt(document.getElementById('set-trials').value)                 || 6;
   CFG.interSoakSec = Math.max(0, parseInt(document.getElementById('set-intersoak').value) || 60);
   CFG.flickerHz    = parseFloat(document.getElementById('set-hz').value)                   || 15;
-  CFG.yellowLum    = Math.max(0.05, Math.min(1, parseFloat(document.getElementById('set-ylum').value) || 0.6));
-  CFG.diskPct      = Math.max(0.05, Math.min(0.8, (parseInt(document.getElementById('set-disk').value) || 30) / 100));
-  CFG.blueRGB      = parseRGB(document.getElementById('set-blue').value,   [0,0,255]);    // FIX 4
-  CFG.yellowRGB    = parseRGB(document.getElementById('set-yellow').value, [255,200,0]);  // FIX 4
-  // FIX 5: precompute frames-per-half from actual detected Hz
+  CFG.yellowLum    = Math.max(0.05, Math.min(1, parseFloat(document.getElementById('set-ylum').value) || 0.85));
+  CFG.diskPct      = Math.max(0.05, Math.min(1.0, (parseInt(document.getElementById('set-disk').value) || 80) / 100));
+  CFG.blueRGB      = parseRGB(document.getElementById('set-blue').value,   [0,0,255]);
+  CFG.yellowRGB    = parseRGB(document.getElementById('set-yellow').value, [255,200,0]);
+  CFG.fullField    = document.getElementById('set-fullfield').value === '1';
+  CFG.blastMs      = Math.max(0, parseInt(document.getElementById('set-blast').value) || 500);
+  // precompute frames-per-half from actual detected Hz
   ST.framesPerHalf = Math.max(1, Math.round(ST.detectedHz / (CFG.flickerHz * 2)));
 }
 
@@ -449,6 +464,7 @@ function startSoak(isFirst) {
   showScreen('s-soak');
   soakCtx.fillStyle = '#ffffff';
   soakCtx.fillRect(0, 0, soakCanvas.width, soakCanvas.height);
+  startAudioLoad(); // draw current during heating
   if (ST.soakTimer) clearInterval(ST.soakTimer);
   ST.soakTimer = setInterval(soakTick, 250);
 }
@@ -461,6 +477,7 @@ function soakTick() {
 
 function soakDone() {
   if (ST.soakTimer) { clearInterval(ST.soakTimer); ST.soakTimer = null; }
+  stopAudioLoad();
   startTrial();
 }
 
@@ -472,28 +489,54 @@ let trialCtx = null;
 
 function startTrial() {
   if (!trialCtx) trialCtx = trialCanvas.getContext('2d');
-  trialCanvas.width  = window.innerWidth;
-  trialCanvas.height = window.innerHeight;
-  ST.blueT      = 0.5;
-  ST.frameCount = 0;  // FIX 5: reset frame counter per trial
-  document.getElementById('trial-num').textContent =
-    `Trial ${ST.trialIndex+1} of ${CFG.nTrials}`;
-  document.getElementById('hz-badge').textContent =
-    `${CFG.flickerHz} Hz · ${ST.framesPerHalf}f`;
-  // Dots
-  const dw = document.getElementById('trial-dots');
-  dw.innerHTML = '';
-  for (let i = 0; i < CFG.nTrials; i++) {
-    const d = document.createElement('div');
-    d.className = 'tdot' + (i < ST.trialIndex ? ' done' : i===ST.trialIndex ? ' active' : '');
-    dw.appendChild(d);
-  }
-  initSlider();
-  updateNullBadge();
-  document.getElementById('ir-overlay').classList.add('hidden');
+
+  // Size canvas AFTER showScreen so it is visible and correct
   showScreen('s-trial');
-  if (ST.animFrame) cancelAnimationFrame(ST.animFrame);
-  ST.animFrame = requestAnimationFrame(trialLoop);
+  // rAF ensures layout is flushed before we read dimensions
+  requestAnimationFrame(() => {
+    trialCanvas.width  = window.innerWidth;
+    trialCanvas.height = window.innerHeight;
+
+    ST.blueT      = 0.5;
+    ST.frameCount = 0;
+    ST.blastActive = false;
+    document.getElementById('trial-num').textContent =
+      `Trial ${ST.trialIndex+1} of ${CFG.nTrials}`;
+    document.getElementById('hz-badge').textContent =
+      `${CFG.flickerHz} Hz · ${ST.framesPerHalf}f`;
+    const dw = document.getElementById('trial-dots');
+    dw.innerHTML = '';
+    for (let i = 0; i < CFG.nTrials; i++) {
+      const d = document.createElement('div');
+      d.className = 'tdot' + (i < ST.trialIndex ? ' done' : i===ST.trialIndex ? ' active' : '');
+      dw.appendChild(d);
+    }
+    initSlider();
+    updateNullBadge();
+    document.getElementById('ir-overlay').classList.add('hidden');
+
+    // Cancel any stale loop
+    if (ST.animFrame) { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
+
+    // Sequence: pre-flicker (so observer sees it start)
+    // → white blast after blastMs
+    // → resume flicker for nulling
+    // blastMs=0 skips the blast entirely
+    if (CFG.blastMs > 0) {
+      ST.animFrame = requestAnimationFrame(trialLoop); // start flicker immediately
+      setTimeout(() => {
+        // Blast: full white
+        ST.blastActive = true;
+        setTimeout(() => {
+          // Resume flicker for nulling
+          ST.blastActive = false;
+          ST.frameCount  = 0; // reset phase so first post-blast frame is always phase 0
+        }, CFG.blastMs);
+      }, 400); // 400 ms of pre-blast flicker so subject sees the start
+    } else {
+      ST.animFrame = requestAnimationFrame(trialLoop);
+    }
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -535,38 +578,81 @@ function updateNullBadge() {
 }
 
 // ════════════════════════════════════════════════════════════
-// FIX 5: Frame-exact flicker loop — phase driven by integer frame count
-// No timestamp modulo; phase flips every ST.framesPerHalf rAF callbacks.
-// At 120Hz + 15Hz: framesPerHalf = round(120/(15*2)) = 4 → exactly 15Hz.
+// AUDIO THERMAL LOAD
+// Runs a silent oscillator during soak to draw CPU/DSP current.
+// This supplements the white screen for more consistent heating.
+// ════════════════════════════════════════════════════════════
+function startAudioLoad() {
+  try {
+    if (ST.audioCtx) { ST.audioCtx.close(); ST.audioCtx = null; }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0; // silent — just draws current
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    ST.audioCtx = ctx;
+  } catch(e) {}
+}
+function stopAudioLoad() {
+  if (ST.audioCtx) { try { ST.audioCtx.close(); } catch(e) {} ST.audioCtx = null; }
+}
+
+// ════════════════════════════════════════════════════════════
+// FRAME-EXACT FLICKER LOOP
+// Phase driven by integer frame count — no timestamp drift.
+// Sequence per trial: flicker → white blast → flicker (for nulling)
+// blastActive=true renders solid white for CFG.blastMs then resumes flicker.
 // ════════════════════════════════════════════════════════════
 function trialLoop() {
   ST.animFrame = null;
   const W = trialCanvas.width, H = trialCanvas.height;
   if (!W || !H) { ST.animFrame = requestAnimationFrame(trialLoop); return; }
 
+  if (ST.blastActive) {
+    // White blast phase — fill entire screen white, HUD still visible above canvas
+    trialCtx.fillStyle = '#ffffff';
+    trialCtx.fillRect(0, 0, W, H);
+    ST.animFrame = requestAnimationFrame(trialLoop);
+    return;
+  }
+
   const phase = Math.floor(ST.frameCount / ST.framesPerHalf) % 2;
   ST.frameCount++;
 
-  const r  = Math.round(Math.min(W,H) * CFG.diskPct);
-  const cx = W * 0.5, cy = H * 0.32;
-
-  trialCtx.fillStyle = '#000';
-  trialCtx.fillRect(0, 0, W, H);
+  const r  = Math.round(Math.min(W, H) * CFG.diskPct);
+  const cx = W * 0.5, cy = H * 0.38;
 
   const dc = phase === 0
-    ? CFG.blueRGB.map(c => enc(lin(c) * ST.blueT))           // blue phase, slider-scaled
-    : CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum));    // yellow phase, fixed
+    ? CFG.blueRGB.map(c => enc(lin(c) * ST.blueT))
+    : CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum));
 
-  trialCtx.beginPath();
-  trialCtx.arc(cx, cy, r, 0, Math.PI*2);
-  trialCtx.fillStyle = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
-  trialCtx.fill();
+  const colorStr = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
 
-  // Fixation dot
-  trialCtx.beginPath();
-  trialCtx.arc(cx, cy, 3, 0, Math.PI*2);
-  trialCtx.fillStyle = '#000';
-  trialCtx.fill();
+  if (CFG.fullField) {
+    // Full-field: entire canvas alternates, maximises photoreceptor contrast
+    trialCtx.fillStyle = colorStr;
+    trialCtx.fillRect(0, 0, W, H);
+    // Fixation cross in complementary color
+    const fix = phase === 0 ? '#ffffff40' : '#00000040';
+    trialCtx.strokeStyle = fix; trialCtx.lineWidth = 1.5;
+    trialCtx.beginPath(); trialCtx.moveTo(cx-10,cy); trialCtx.lineTo(cx+10,cy); trialCtx.stroke();
+    trialCtx.beginPath(); trialCtx.moveTo(cx,cy-10); trialCtx.lineTo(cx,cy+10); trialCtx.stroke();
+  } else {
+    // Disk only
+    trialCtx.fillStyle = '#000';
+    trialCtx.fillRect(0, 0, W, H);
+    trialCtx.beginPath();
+    trialCtx.arc(cx, cy, r, 0, Math.PI*2);
+    trialCtx.fillStyle = colorStr;
+    trialCtx.fill();
+    // Fixation dot
+    trialCtx.beginPath();
+    trialCtx.arc(cx, cy, 3, 0, Math.PI*2);
+    trialCtx.fillStyle = '#000';
+    trialCtx.fill();
+  }
 
   ST.animFrame = requestAnimationFrame(trialLoop);
 }
@@ -770,6 +856,7 @@ function exportCSV() {
     ['yellow_luminance',CFG.yellowLum],['soak_sec',CFG.soakSec],
     ['intersoak_sec',CFG.interSoakSec],
     ['blue_rgb',CFG.blueRGB.join(';')],['yellow_rgb',CFG.yellowRGB.join(';')],
+    ['full_field',CFG.fullField?1:0],['blast_ms',CFG.blastMs],
     ['display_hz',ST.detectedHz],['frames_per_half',ST.framesPerHalf],[],
     ['trial','timestamp','elapsed_ms','null_blue_t','delta_null','ir_temp',
      'thermal_state','battery_pct','battery_state','flicker_hz','frames_per_half','display_hz'],
