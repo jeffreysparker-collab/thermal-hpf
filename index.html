@@ -63,6 +63,9 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 
 #s-soak{background:#fff;padding:0;}
 #soak-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+
+#s-cff{background:#000;padding:0;}
+#cff-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:transform;transform:translateZ(0);}
 .soak-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:max(36px,calc(env(safe-area-inset-bottom)+24px));pointer-events:none;}
 .soak-top{position:absolute;top:0;left:0;right:0;padding:max(16px,env(safe-area-inset-top,16px)) 20px 16px;background:linear-gradient(#00000066,transparent);pointer-events:none;}
 .soak-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#00000080;font-family:var(--font-mono);}
@@ -172,7 +175,9 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
     <div class="row"><span class="row-label">Flicker rate (Hz)</span>
       <select class="sel" id="set-hz" onchange="updateHzNote()">
         <option value="10">10 Hz</option><option value="12">12 Hz</option>
-        <option value="15" selected>15 Hz</option><option value="20">20 Hz</option><option value="24">24 Hz</option>
+        <option value="15">15 Hz</option><option value="20">20 Hz</option>
+        <option value="25" selected>25 Hz</option><option value="30">30 Hz</option>
+        <option value="40">40 Hz</option><option value="60">60 Hz</option>
       </select></div>
   </div>
   <div class="card" style="max-width:420px;width:100%">
@@ -200,7 +205,8 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   </div>
   <div class="btn-row">
     <button class="btn-g" onclick="showScreen('s-home')">← Back</button>
-    <button class="btn-p" onclick="startSoak(true)">Start →</button>
+    <button class="btn-g" onclick="skipCFF()">Skip CFF →</button>
+    <button class="btn-p" onclick="launchCFF()">Calibrate CFF →</button>
   </div>
 </div>
 
@@ -217,6 +223,31 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   </div>
 </div>
 
+<!-- CFF CALIBRATION -->
+<div class="screen" id="s-cff">
+  <canvas id="cff-canvas"></canvas>
+  <div class="trial-top">
+    <div>
+      <div class="trial-meta">CFF Calibration</div>
+      <div class="trial-sub" id="cff-sub">Drag slider · find fusion threshold</div>
+    </div>
+  </div>
+  <div id="hz-badge-cff" style="position:absolute;top:50%;right:18px;transform:translateY(-50%);font-size:9px;letter-spacing:1.5px;color:#ffffff20;pointer-events:none;"></div>
+  <div class="trial-hud">
+    <div id="cff-badge" style="font-family:var(--font-head);font-size:28px;font-weight:700;color:#fff;letter-spacing:-0.5px;pointer-events:none;margin-bottom:4px;">— Hz</div>
+    <div style="font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff30;margin-bottom:8px;pointer-events:none;">FLICKER FREQUENCY</div>
+    <div class="sl-wrap" id="cff-sl-wrap">
+      <div class="sl-track"></div>
+      <div class="sl-fill-blue"   id="cff-fill-lo"   style="width:50%"></div>
+      <div class="sl-fill-yellow" id="cff-fill-hi"   style="width:50%"></div>
+      <div class="sl-thumb"       id="cff-thumb"     style="left:50%"></div>
+    </div>
+    <div class="sl-labels"><span>← slower (flicker)</span><span>faster (fused) →</span></div>
+    <div style="font-size:9px;color:#ffffff25;text-align:center;margin-top:2px;pointer-events:none;">Find the point where flicker just disappears, then confirm</div>
+    <button id="cff-confirm-btn" style="pointer-events:all;margin-top:8px;padding:14px 36px;background:var(--blue);color:#fff;border:none;border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;touch-action:manipulation;" onclick="confirmCFF()">Set HFP frequency ✓</button>
+  </div>
+</div>
+
 <!-- TRIAL -->
 <div class="screen" id="s-trial">
   <canvas id="trial-canvas"></canvas>
@@ -224,7 +255,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   <div class="trial-top">
     <div>
       <div class="trial-meta" id="trial-num">Trial 1</div>
-      <div class="trial-sub">Drag slider · minimize flicker · confirm</div>
+      <div class="trial-sub">Drag slider · match blue luminance · minimize flicker</div>
     </div>
     <div class="trial-dots" id="trial-dots"></div>
   </div>
@@ -314,9 +345,13 @@ let ST = {
   frameCount:0,
   framesPerHalf:4,
   pendingSnapshot:null,
-  blastActive:false,   // true during white-blast phase
-  audioCtx:null,       // thermal load audio context
+  trialFlicker:null,
+  trialToken:0,
+  audioCtx:null,
 };
+
+// CFF loop — declared here so stopAll() can reference it before startCFF() runs
+let cffLoop = null;
 
 // ════════════════════════════════════════════════════════════
 // FIX 6 + FIX 11: FPS detection — median IFI, runs once, then stops
@@ -414,8 +449,11 @@ function showScreen(id) {
 }
 
 function stopAll() {
-  if (ST.animFrame)  { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
-  if (ST.soakTimer)  { clearInterval(ST.soakTimer); ST.soakTimer = null; }
+  if (ST.animFrame)    { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
+  if (ST.soakTimer)    { clearInterval(ST.soakTimer); ST.soakTimer = null; }
+  if (ST.trialFlicker) { ST.trialFlicker.stop(); ST.trialFlicker = null; }
+  if (cffLoop)         { cffLoop.stop(); cffLoop = null; }
+  ST.trialToken++;     // invalidate any pending blast timeouts
   stopAudioLoad();
 }
 
@@ -490,20 +528,19 @@ let trialCtx = null;
 function startTrial() {
   if (!trialCtx) trialCtx = trialCanvas.getContext('2d');
 
-  // Size canvas AFTER showScreen so it is visible and correct
+  // Stop any previous loop before touching the screen
+  if (ST.trialFlicker) { ST.trialFlicker.stop(); ST.trialFlicker = null; }
+
   showScreen('s-trial');
-  // rAF ensures layout is flushed before we read dimensions
+
   requestAnimationFrame(() => {
     trialCanvas.width  = window.innerWidth;
     trialCanvas.height = window.innerHeight;
 
-    ST.blueT      = 0.5;
-    ST.frameCount = 0;
-    ST.blastActive = false;
-    document.getElementById('trial-num').textContent =
-      `Trial ${ST.trialIndex+1} of ${CFG.nTrials}`;
-    document.getElementById('hz-badge').textContent =
-      `${CFG.flickerHz} Hz · ${ST.framesPerHalf}f`;
+    ST.blueT = 0.5;
+    document.getElementById('trial-num').textContent = `Trial ${ST.trialIndex+1} of ${CFG.nTrials}`;
+    document.getElementById('hz-badge').textContent  = `${CFG.flickerHz} Hz · ${ST.framesPerHalf}f`;
+
     const dw = document.getElementById('trial-dots');
     dw.innerHTML = '';
     for (let i = 0; i < CFG.nTrials; i++) {
@@ -515,26 +552,36 @@ function startTrial() {
     updateNullBadge();
     document.getElementById('ir-overlay').classList.add('hidden');
 
-    // Cancel any stale loop
-    if (ST.animFrame) { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
+    // Create flicker loop for this trial (closure captures current ST.blueT via getter)
+    const fl = makeFlickerLoop(
+      trialCanvas, trialCtx,
+      () => CFG.flickerHz,
+      () => CFG.blueRGB.map(c => enc(lin(c) * ST.blueT)),
+      () => CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum)),
+      false // respects CFG.fullField inside makeFlickerLoop
+    );
+    ST.trialFlicker = fl;
 
-    // Sequence: pre-flicker (so observer sees it start)
-    // → white blast after blastMs
-    // → resume flicker for nulling
-    // blastMs=0 skips the blast entirely
+    // Sequence: flicker → white blast → flicker
+    // Use a trial-scoped token so stale timeouts from aborted trials are harmless
+    const trialToken = ++ST.trialToken;
+
+    fl.start();
+
     if (CFG.blastMs > 0) {
-      ST.animFrame = requestAnimationFrame(trialLoop); // start flicker immediately
+      // After 400ms of pre-blast flicker, hit white
       setTimeout(() => {
-        // Blast: full white
-        ST.blastActive = true;
+        if (ST.trialToken !== trialToken) return; // trial was cancelled
+        fl.stop();
+        trialCtx.fillStyle = '#ffffff';
+        trialCtx.fillRect(0, 0, trialCanvas.width, trialCanvas.height);
+
+        // Hold white for blastMs, then restart flicker
         setTimeout(() => {
-          // Resume flicker for nulling
-          ST.blastActive = false;
-          ST.frameCount  = 0; // reset phase so first post-blast frame is always phase 0
+          if (ST.trialToken !== trialToken) return;
+          fl.start(); // starts with fresh phase
         }, CFG.blastMs);
-      }, 400); // 400 ms of pre-blast flicker so subject sees the start
-    } else {
-      ST.animFrame = requestAnimationFrame(trialLoop);
+      }, 400);
     }
   });
 }
@@ -600,61 +647,148 @@ function stopAudioLoad() {
 }
 
 // ════════════════════════════════════════════════════════════
-// FRAME-EXACT FLICKER LOOP
-// Phase driven by integer frame count — no timestamp drift.
-// Sequence per trial: flicker → white blast → flicker (for nulling)
-// blastActive=true renders solid white for CFG.blastMs then resumes flicker.
+// FLICKER LOOP — shared by CFF calibration and HFP trials
+// phase=0 → colorA, phase=1 → colorB, driven by integer frame count
 // ════════════════════════════════════════════════════════════
-function trialLoop() {
-  ST.animFrame = null;
-  const W = trialCanvas.width, H = trialCanvas.height;
-  if (!W || !H) { ST.animFrame = requestAnimationFrame(trialLoop); return; }
+function makeFlickerLoop(canvas, ctx, getHz, getColorA, getColorB, fullField) {
+  let frameCount = 0;
+  let running = false;
+  let rafHandle = null;
 
-  if (ST.blastActive) {
-    // White blast phase — fill entire screen white, HUD still visible above canvas
-    trialCtx.fillStyle = '#ffffff';
-    trialCtx.fillRect(0, 0, W, H);
-    ST.animFrame = requestAnimationFrame(trialLoop);
-    return;
+  function framesPerHalf() {
+    return Math.max(1, Math.round(ST.detectedHz / (getHz() * 2)));
   }
 
-  const phase = Math.floor(ST.frameCount / ST.framesPerHalf) % 2;
-  ST.frameCount++;
+  function loop() {
+    rafHandle = null;
+    if (!running) return;
+    const W = canvas.width, H = canvas.height;
+    if (!W || !H) { rafHandle = requestAnimationFrame(loop); return; }
 
-  const r  = Math.round(Math.min(W, H) * CFG.diskPct);
-  const cx = W * 0.5, cy = H * 0.38;
+    const fph = framesPerHalf();
+    const phase = Math.floor(frameCount / fph) % 2;
+    frameCount++;
 
-  const dc = phase === 0
-    ? CFG.blueRGB.map(c => enc(lin(c) * ST.blueT))
-    : CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum));
+    const dc = phase === 0 ? getColorA() : getColorB();
+    const colorStr = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
+    const cx = W * 0.5, cy = H * 0.38;
 
-  const colorStr = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
+    if (fullField || CFG.fullField) {
+      ctx.fillStyle = colorStr;
+      ctx.fillRect(0, 0, W, H);
+      // Subtle fixation cross
+      const fix = phase === 0 ? '#ffffff30' : '#00000030';
+      ctx.strokeStyle = fix; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx-12,cy); ctx.lineTo(cx+12,cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx,cy-12); ctx.lineTo(cx,cy+12); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      const r = Math.round(Math.min(W,H) * CFG.diskPct);
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle = colorStr; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2);
+      ctx.fillStyle = '#000'; ctx.fill();
+    }
 
-  if (CFG.fullField) {
-    // Full-field: entire canvas alternates, maximises photoreceptor contrast
-    trialCtx.fillStyle = colorStr;
-    trialCtx.fillRect(0, 0, W, H);
-    // Fixation cross in complementary color
-    const fix = phase === 0 ? '#ffffff40' : '#00000040';
-    trialCtx.strokeStyle = fix; trialCtx.lineWidth = 1.5;
-    trialCtx.beginPath(); trialCtx.moveTo(cx-10,cy); trialCtx.lineTo(cx+10,cy); trialCtx.stroke();
-    trialCtx.beginPath(); trialCtx.moveTo(cx,cy-10); trialCtx.lineTo(cx,cy+10); trialCtx.stroke();
-  } else {
-    // Disk only
-    trialCtx.fillStyle = '#000';
-    trialCtx.fillRect(0, 0, W, H);
-    trialCtx.beginPath();
-    trialCtx.arc(cx, cy, r, 0, Math.PI*2);
-    trialCtx.fillStyle = colorStr;
-    trialCtx.fill();
-    // Fixation dot
-    trialCtx.beginPath();
-    trialCtx.arc(cx, cy, 3, 0, Math.PI*2);
-    trialCtx.fillStyle = '#000';
-    trialCtx.fill();
+    rafHandle = requestAnimationFrame(loop);
   }
 
-  ST.animFrame = requestAnimationFrame(trialLoop);
+  return {
+    start() { frameCount = 0; running = true; if (!rafHandle) rafHandle = requestAnimationFrame(loop); },
+    stop()  { running = false; if (rafHandle) { cancelAnimationFrame(rafHandle); rafHandle = null; } },
+    resetPhase() { frameCount = 0; },
+    getHz:  framesPerHalf,
+  };
+}
+
+function launchCFF() { readSettings(); startCFF(); }
+function skipCFF()   { readSettings(); startSoak(true); }
+
+// ════════════════════════════════════════════════════════════
+// CFF CALIBRATION
+// Subject drags a Hz slider to find their fusion frequency.
+// That value becomes the HFP flicker rate for all trials.
+// ════════════════════════════════════════════════════════════
+const cffCanvas = document.getElementById('cff-canvas');
+let cffCtx = null;
+let cffHz = 25;
+
+function startCFF() {
+  if (!cffCtx) cffCtx = cffCanvas.getContext('2d');
+  showScreen('s-cff');
+  requestAnimationFrame(() => {
+    cffCanvas.width  = window.innerWidth;
+    cffCanvas.height = window.innerHeight;
+    cffHz = CFG.flickerHz; // seed from settings
+
+    // CFF uses equal-luminance blue/yellow at fixed 85% — subject only adjusts Hz
+    if (cffLoop) cffLoop.stop();
+    cffLoop = makeFlickerLoop(
+      cffCanvas, cffCtx,
+      () => cffHz,
+      () => CFG.blueRGB.map(c => enc(lin(c) * 0.85)),    // blue at fixed 85%
+      () => CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum)),
+      true  // always full-field for CFF
+    );
+    cffLoop.start();
+    initCFFSlider();
+    updateCFFBadge();
+  });
+}
+
+function initCFFSlider() {
+  const MIN_HZ = 5, MAX_HZ = 60;
+  const old = document.getElementById('cff-sl-wrap');
+  const nw  = old.cloneNode(true);
+  old.parentNode.replaceChild(nw, old);
+  const thumb  = nw.querySelector('#cff-thumb');
+  const fillLo = nw.querySelector('#cff-fill-lo');
+  const fillHi = nw.querySelector('#cff-fill-hi');
+  let dragging = false;
+
+  function setPct(pct) {
+    pct = Math.max(0, Math.min(1, pct));
+    cffHz = MIN_HZ + pct * (MAX_HZ - MIN_HZ);
+    // snap to integer
+    cffHz = Math.round(cffHz);
+    const p = (cffHz - MIN_HZ) / (MAX_HZ - MIN_HZ) * 100;
+    fillLo.style.width = p + '%';
+    fillHi.style.width = (100-p) + '%';
+    thumb.style.left  = p + '%';
+    updateCFFBadge();
+  }
+  function fromX(cx) {
+    const r = nw.getBoundingClientRect();
+    setPct((cx - r.left) / r.width);
+  }
+  nw.addEventListener('pointerdown', e => { e.preventDefault(); dragging=true; nw.classList.add('dragging'); nw.setPointerCapture(e.pointerId); fromX(e.clientX); });
+  nw.addEventListener('pointermove', e => { if(!dragging)return; e.preventDefault(); fromX(e.clientX); });
+  nw.addEventListener('pointerup',     () => { dragging=false; nw.classList.remove('dragging'); });
+  nw.addEventListener('pointercancel', () => { dragging=false; nw.classList.remove('dragging'); });
+  // seed position
+  const p0 = (cffHz - MIN_HZ) / (MAX_HZ - MIN_HZ);
+  setPct(p0);
+}
+
+function updateCFFBadge() {
+  const fph = Math.max(1, Math.round(ST.detectedHz / (cffHz * 2)));
+  const actual = (ST.detectedHz / (fph * 2)).toFixed(1);
+  document.getElementById('cff-badge').textContent = `${cffHz} Hz`;
+  document.getElementById('hz-badge-cff').textContent = `actual ${actual} Hz · ${fph}f/half`;
+}
+
+function confirmCFF() {
+  if (cffLoop) { cffLoop.stop(); cffLoop = null; }
+  // HFP frequency: CFF - 5 Hz (needs to be below fusion to see flicker), min 10
+  const hfpHz = Math.max(10, cffHz - 5);
+  CFG.flickerHz = hfpHz;
+  ST.framesPerHalf = Math.max(1, Math.round(ST.detectedHz / (hfpHz * 2)));
+  // Snap the settings dropdown to nearest available option
+  const opts = [...document.getElementById('set-hz').options].map(o => +o.value);
+  const nearest = opts.reduce((best,v) => Math.abs(v-hfpHz) < Math.abs(best-hfpHz) ? v : best, opts[0]);
+  document.getElementById('set-hz').value = nearest;
+  startSoak(true);
 }
 
 // ════════════════════════════════════════════════════════════
