@@ -5,1033 +5,1189 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#050507">
-<link rel="manifest" href="manifest.json">
-<title>Thermal HFP</title>
+<meta name="theme-color" content="#04040a">
+<title>HFP</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
-
-/* Safari 120Hz unlock */
+/* ── 120 Hz unlock (Safari) ── */
 .hz-unlock{width:1px;height:1px;position:fixed;top:-9px;left:-9px;pointer-events:none;will-change:transform;animation:_u 0.00833s infinite linear;}
-@keyframes _u{0%{transform:translateY(0) translateZ(0);}100%{transform:translateY(0.1px) translateZ(0);}}
+@keyframes _u{to{transform:translateY(0.1px) translateZ(0);}}
 
-/* FIX 1: @keyframes ra inside <style> */
-@keyframes ra{0%,100%{transform:rotate(90deg)}40%,60%{transform:rotate(0deg)}}
-@keyframes mark-spin{to{transform:rotate(360deg);}}
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Anybody:wght@200;400;700;900&display=swap');
 
 :root{
-  --bg:#050507;--surface:#0e0e14;--surface2:#13131a;
-  --border:#1e1e28;--border2:#171720;
-  --text:#dddae8;--text-dim:#5a5870;--text-mid:#9896a8;
-  --blue:#3b82f6;--blue-dim:#1e3a6e;
-  --yellow:#f5c842;--yellow-dim:#7a6010;
-  --green:#34d399;--red:#f87171;--orange:#fb923c;
+  --bg:#04040a;
+  --s0:#09090f;
+  --s1:#0e0e17;
+  --s2:#13131e;
+  --bd:#1a1a28;
+  --bd2:#111119;
+  --tx:#d8d5ea;
+  --tx2:#8480a0;
+  --tx3:#3e3c58;
+  --blue:#4d9fff;
+  --blue-d:#163568;
+  --yel:#f0c040;
+  --yel-d:#5c4410;
+  --grn:#3ecf8e;
+  --red:#f06060;
   --r:10px;
-  --font-head:'Syne',sans-serif;
-  --font-mono:'Space Mono','Courier New',monospace;
+  --mono:'DM Mono',monospace;
+  --head:'Anybody','DM Mono',sans-serif;
 }
+
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--font-mono);overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none;}
+html,body{
+  width:100%;height:100%;
+  background:var(--bg);color:var(--tx);
+  font-family:var(--mono);
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
+  touch-action:none;
+}
 
-.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;opacity:0;pointer-events:none;transition:opacity 0.3s ease;}
+/* ── Screens ── */
+.screen{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:28px 20px;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s;
+}
 .screen.active{opacity:1;pointer-events:all;}
-.screen.scroll{overflow-y:auto;justify-content:flex-start;padding-top:60px;touch-action:pan-y;}
+.screen.scrollable{overflow-y:auto;justify-content:flex-start;padding-top:max(56px,env(safe-area-inset-top,20px));touch-action:pan-y;}
 
-#s-home{background:radial-gradient(ellipse 80% 60% at 50% 70%,#0a0a18 0%,var(--bg) 70%);}
-.home-mark{width:80px;height:80px;border-radius:50%;margin-bottom:28px;flex-shrink:0;background:conic-gradient(from 200deg,#3b82f6 0%,#f5c842 45%,#3b82f6 90%);box-shadow:0 0 0 1px #3b82f625,0 0 40px #3b82f620,0 0 80px #3b82f610;animation:mark-spin 12s linear infinite;}
-.home-title{font-family:var(--font-head);font-size:42px;font-weight:800;letter-spacing:-1.5px;line-height:1;margin-bottom:6px;background:linear-gradient(135deg,var(--blue) 0%,#a78bfa 50%,var(--yellow) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.home-sub{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:36px;}
-.home-desc{font-size:11px;line-height:1.9;color:var(--text-dim);text-align:center;max-width:300px;margin-bottom:36px;}
-.home-desc em{color:var(--text-mid);font-style:normal;}
-#fps-badge{font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:20px;}
+/* ── Landscape guard ── */
+.rotate-hint{
+  display:none;position:fixed;inset:0;
+  background:var(--bg);z-index:9999;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;font-size:11px;letter-spacing:2px;color:var(--tx3);
+}
+@keyframes tilt{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}
+@media(orientation:landscape){.rotate-hint{display:flex;}}
 
-#s-settings{gap:12px;justify-content:center;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;width:100%;max-width:420px;}
-.card-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;}
-.row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border2);font-size:11px;}
-.row:last-child{border-bottom:none;padding-bottom:0;}
-.row-label{color:var(--text-dim);font-size:10px;}
-.sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:10px;padding:5px 8px;outline:none;-webkit-appearance:none;min-width:100px;text-align:right;touch-action:manipulation;}
-.num-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:10px;padding:5px 8px;outline:none;width:80px;text-align:right;touch-action:manipulation;}
-.num-input:focus{border-color:var(--blue);}
+/* ══════════════════════════════
+   HOME
+══════════════════════════════ */
+#s-home{
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 110%, #0a1228 0%, transparent 65%),
+    var(--bg);
+}
+.logo-ring{
+  width:72px;height:72px;border-radius:50%;
+  background:conic-gradient(from 180deg, var(--blue) 0%, var(--yel) 42%, var(--blue) 82%);
+  box-shadow:0 0 0 1px #4d9fff18, 0 0 48px #4d9fff14;
+  animation:spin 14s linear infinite;
+  flex-shrink:0;margin-bottom:22px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.logo-title{
+  font-family:var(--head);font-size:48px;font-weight:900;letter-spacing:-2px;
+  background:linear-gradient(130deg,var(--blue) 0%,#a0c8ff 40%,var(--yel) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:4px;
+}
+.logo-sub{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--tx3);margin-bottom:24px;}
+.home-blurb{font-size:11px;line-height:1.9;color:var(--tx3);text-align:center;max-width:280px;margin-bottom:28px;}
+.home-blurb em{color:var(--tx2);font-style:normal;}
+#fps-pill{
+  font-size:9px;letter-spacing:2px;
+  padding:4px 12px;border-radius:100px;
+  border:1px solid var(--bd);color:var(--tx3);
+  margin-bottom:24px;
+}
+.caution{font-size:8px;letter-spacing:1.5px;line-height:1.9;color:var(--tx3);text-align:center;max-width:260px;margin-top:18px;}
+.caution strong{color:var(--tx2);}
 
-.btn-p{padding:14px 32px;background:var(--blue);color:#fff;border:none;border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all 0.18s;min-width:160px;touch-action:manipulation;}
-.btn-p:active{transform:scale(0.96);opacity:0.85;}
-.btn-g{padding:12px 22px;background:transparent;color:var(--text-dim);border:1px solid var(--border);border-radius:100px;font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all 0.18s;touch-action:manipulation;}
-.btn-g:active{color:var(--text);border-color:var(--text-mid);}
-.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
-
-#s-soak{background:#fff;padding:0;}
-#soak-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
-
+/* ══════════════════════════════
+   CFF CALIBRATION
+══════════════════════════════ */
 #s-cff{background:#000;padding:0;}
 #cff-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:transform;transform:translateZ(0);}
-.soak-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:max(36px,calc(env(safe-area-inset-bottom)+24px));pointer-events:none;}
-.soak-top{position:absolute;top:0;left:0;right:0;padding:max(16px,env(safe-area-inset-top,16px)) 20px 16px;background:linear-gradient(#00000066,transparent);pointer-events:none;}
-.soak-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#00000080;font-family:var(--font-mono);}
-#soak-status{font-size:13px;color:#00000099;font-family:var(--font-mono);margin-top:4px;letter-spacing:1px;}
-#soak-countdown{font-family:var(--font-head);font-size:72px;font-weight:800;color:#00000015;letter-spacing:-3px;line-height:1;pointer-events:none;}
-#soak-begin-btn{pointer-events:all;padding:16px 40px;background:rgba(0,0,0,0.12);border:1.5px solid rgba(0,0,0,0.25);border-radius:100px;color:rgba(0,0,0,0.7);font-family:var(--font-mono);font-size:13px;letter-spacing:1.5px;cursor:pointer;touch-action:manipulation;}
-#soak-begin-btn:active{background:rgba(0,0,0,0.22);}
+.cff-top{
+  position:absolute;top:0;left:0;right:0;
+  padding:max(16px,env(safe-area-inset-top,16px)) 20px 16px;
+  background:linear-gradient(#000000aa,transparent);
+  pointer-events:none;
+}
+.cff-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:#ffffff40;}
+.cff-hint{font-size:10px;color:#ffffff25;margin-top:3px;}
+.cff-hud{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:0 22px;
+  padding-bottom:max(32px,calc(env(safe-area-inset-bottom)+20px));
+  background:linear-gradient(transparent,#000000a0 18%,#000000cc);
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.hz-display{
+  font-family:var(--head);font-size:52px;font-weight:900;
+  color:#fff;letter-spacing:-2px;line-height:1;
+  pointer-events:none;margin-bottom:2px;
+}
+.hz-actual{font-size:9px;letter-spacing:2px;color:#ffffff30;pointer-events:none;margin-bottom:6px;}
 
+/* ══════════════════════════════
+   TRIAL SETUP
+══════════════════════════════ */
+#s-setup{gap:14px;}
+.setup-title{
+  font-family:var(--head);font-size:32px;font-weight:900;letter-spacing:-1px;
+  color:var(--tx);margin-bottom:4px;
+}
+.setup-sub{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--tx3);margin-bottom:16px;}
+.cal-badge{
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);
+  padding:12px 18px;width:100%;max-width:360px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.cal-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--tx3);}
+.cal-val{font-family:var(--head);font-size:22px;font-weight:700;color:var(--blue);}
+.card{
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);
+  padding:14px 16px;width:100%;max-width:360px;
+}
+.card-label{font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;}
+.row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;border-bottom:1px solid var(--bd2);font-size:11px;
+}
+.row:last-child{border-bottom:none;padding-bottom:0;}
+.row-lbl{color:var(--tx3);font-size:10px;}
+.sel,.num-in{
+  background:var(--s2);border:1px solid var(--bd);border-radius:6px;
+  color:var(--tx);font-family:var(--mono);font-size:10px;
+  padding:5px 8px;outline:none;
+  -webkit-appearance:none;min-width:90px;text-align:right;
+  touch-action:manipulation;
+}
+.num-in:focus{border-color:var(--blue);}
+
+/* ══════════════════════════════
+   TRIAL — flicker + soak
+══════════════════════════════ */
 #s-trial{background:#000;padding:0;}
 #trial-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;will-change:transform;transform:translateZ(0);}
-.trial-top{position:absolute;top:0;left:0;right:0;padding:max(14px,env(safe-area-inset-top,14px)) 18px 14px;background:linear-gradient(#000000cc,transparent);pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start;}
-.trial-meta{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#ffffff40;}
-.trial-sub{font-size:10px;color:#ffffff35;margin-top:3px;}
-.trial-dots{display:flex;gap:4px;align-items:center;}
-.tdot{width:6px;height:6px;border-radius:50%;background:#ffffff15;transition:background 0.25s;}
-.tdot.done{background:var(--yellow);}.tdot.active{background:#ffffffaa;}
 
-.trial-hud{position:absolute;bottom:0;left:0;right:0;padding:0 22px;padding-bottom:max(28px,calc(env(safe-area-inset-bottom)+16px));background:linear-gradient(transparent,#00000060 15%,#000000b0);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;}
+/* soak overlay — sits above canvas, only visible during soak */
+#soak-overlay{
+  position:absolute;inset:0;
+  background:#fff;
+  opacity:0;pointer-events:none;
+  transition:opacity .05s;
+}
+#soak-overlay.visible{opacity:1;}
 
-.sl-wrap{width:100%;position:relative;height:56px;display:flex;align-items:center;pointer-events:all;cursor:grab;touch-action:none;}
+/* trial HUD — top strip */
+.trial-top{
+  position:absolute;top:0;left:0;right:0;
+  padding:max(14px,env(safe-area-inset-top,14px)) 18px 14px;
+  background:linear-gradient(#000000cc,transparent);
+  pointer-events:none;
+  display:flex;justify-content:space-between;align-items:flex-start;
+}
+.trial-meta{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff40;}
+.trial-sub{font-size:9px;color:#ffffff25;margin-top:3px;letter-spacing:1px;}
+.tdots{display:flex;gap:4px;align-items:center;}
+.tdot{width:6px;height:6px;border-radius:50%;background:#ffffff15;transition:background .2s;}
+.tdot.done{background:var(--yel);}.tdot.active{background:#ffffffaa;}
+
+/* soak HUD — countdown shown when soaking */
+#soak-hud{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .15s;
+}
+#soak-hud.visible{opacity:1;}
+#soak-count{
+  font-family:var(--head);font-size:96px;font-weight:900;
+  color:#00000012;letter-spacing:-4px;line-height:1;
+}
+#soak-status-txt{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#00000025;margin-top:8px;}
+
+/* trial HUD — bottom controls */
+.trial-hud{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:0 22px;
+  padding-bottom:max(28px,calc(env(safe-area-inset-bottom)+16px));
+  background:linear-gradient(transparent,#00000066 15%,#000000b0);
+  pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  transition:opacity .2s;
+}
+.trial-hud.hidden-hud{opacity:0;pointer-events:none;}
+
+.null-val{
+  font-family:var(--head);font-size:32px;font-weight:700;
+  color:#fff;letter-spacing:-1px;pointer-events:none;margin-bottom:2px;
+}
+.null-lbl{font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff30;margin-bottom:6px;pointer-events:none;}
+
+/* ══════════════════════════════
+   SLIDER (shared)
+══════════════════════════════ */
+.sl-wrap{
+  width:100%;position:relative;height:56px;
+  display:flex;align-items:center;
+  pointer-events:all;cursor:grab;touch-action:none;
+}
 .sl-wrap:active{cursor:grabbing;}
 .sl-track{position:absolute;left:0;right:0;height:4px;border-radius:2px;background:#ffffff15;}
-.sl-fill-blue{position:absolute;left:0;top:0;height:100%;border-radius:2px 0 0 2px;background:linear-gradient(to right,#1e3a8a,var(--blue));pointer-events:none;}
-.sl-fill-yellow{position:absolute;right:0;top:0;height:100%;border-radius:0 2px 2px 0;background:linear-gradient(to right,var(--yellow-dim),var(--yellow));pointer-events:none;}
-.sl-thumb{position:absolute;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 38% 36%,#e0eeff,var(--blue) 55%,#0a1a40);box-shadow:0 0 0 2px #00000099,0 0 20px #3b82f660;pointer-events:none;}
-.sl-wrap.dragging .sl-thumb{box-shadow:0 0 0 2px #00000099,0 0 36px #3b82f699;}
-.sl-labels{display:flex;justify-content:space-between;font-size:8px;color:#ffffff25;letter-spacing:1px;margin-top:-2px;pointer-events:none;width:100%;}
+.sl-fill-a{position:absolute;left:0;top:0;height:100%;border-radius:2px 0 0 2px;background:linear-gradient(to right,#0a2260,var(--blue));pointer-events:none;}
+.sl-fill-b{position:absolute;right:0;top:0;height:100%;border-radius:0 2px 2px 0;background:linear-gradient(to right,var(--yel-d),var(--yel));pointer-events:none;}
+.sl-thumb{
+  position:absolute;top:50%;transform:translate(-50%,-50%);
+  width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 38% 36%,#e0eeff,var(--blue) 55%,#091840);
+  box-shadow:0 0 0 2px #00000099,0 0 20px #4d9fff60;
+  pointer-events:none;transition:box-shadow .15s;
+}
+.sl-wrap.dragging .sl-thumb{box-shadow:0 0 0 2px #00000099,0 0 36px #4d9fff99;}
+.sl-labels{display:flex;justify-content:space-between;font-size:8px;color:#ffffff20;letter-spacing:1px;pointer-events:none;width:100%;}
 
-#null-badge{font-family:var(--font-head);font-size:28px;font-weight:700;color:#fff;letter-spacing:-0.5px;pointer-events:none;margin-bottom:4px;}
-#null-label{font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff30;margin-bottom:8px;pointer-events:none;}
-#hz-badge{position:absolute;top:50%;right:18px;transform:translateY(-50%);font-size:9px;letter-spacing:1.5px;color:#ffffff20;pointer-events:none;}
-#confirm-btn{pointer-events:all;margin-top:4px;padding:14px 36px;background:var(--yellow);color:#1a0e00;border:none;border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;touch-action:manipulation;}
-#confirm-btn:active{transform:scale(0.96);}
+/* CFF slider — hz variant (thumb different color) */
+#cff-sl .sl-thumb{
+  background:radial-gradient(circle at 38% 36%,#ffe9a0,var(--yel) 55%,#2a1a00);
+  box-shadow:0 0 0 2px #00000099,0 0 20px #f0c04060;
+}
+#cff-sl.dragging .sl-thumb{box-shadow:0 0 0 2px #00000099,0 0 36px #f0c04099;}
 
-.ir-overlay{position:fixed;inset:0;background:#000000ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:200;padding:32px;}
-.ir-title{font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--yellow);letter-spacing:-0.5px;}
-.ir-body{font-size:11px;color:var(--text-dim);text-align:center;line-height:1.8;max-width:260px;}
-.ir-input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-mono);font-size:18px;padding:12px 16px;outline:none;width:160px;text-align:center;touch-action:manipulation;}
-.ir-input:focus{border-color:var(--yellow);}
-.state-pill{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
-.pill{font-size:9px;letter-spacing:1.5px;padding:4px 10px;border-radius:100px;border:1px solid var(--border);}
-.pill.unknown{color:var(--text-dim);}
-.pill.nominal{color:var(--green);border-color:#34d39940;background:#34d39910;}
-.pill.fair{color:var(--yellow);border-color:#f5c84240;background:#f5c84210;}
-.pill.serious{color:var(--orange);border-color:#fb923c40;background:#fb923c10;}
-.pill.critical{color:var(--red);border-color:#f8717140;background:#f8717110;}
+/* ══════════════════════════════
+   BUTTONS
+══════════════════════════════ */
+.btn-p{
+  padding:14px 32px;
+  background:var(--blue);color:#fff;
+  border:none;border-radius:100px;
+  font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:1px;
+  cursor:pointer;transition:all .16s;min-width:160px;touch-action:manipulation;
+}
+.btn-p:active{transform:scale(.96);opacity:.85;}
+.btn-y{
+  padding:14px 36px;
+  background:var(--yel);color:#1a0e00;
+  border:none;border-radius:100px;
+  font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:1px;
+  cursor:pointer;transition:all .16s;touch-action:manipulation;
+  pointer-events:all;
+}
+.btn-y:active{transform:scale(.96);}
+.btn-g{
+  padding:12px 22px;background:transparent;
+  color:var(--tx2);border:1px solid var(--bd);border-radius:100px;
+  font-family:var(--mono);font-size:11px;
+  cursor:pointer;transition:all .16s;touch-action:manipulation;
+}
+.btn-g:active{color:var(--tx);border-color:var(--tx2);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
 
-#s-results{gap:12px;justify-content:flex-start;padding-top:52px;}
-.res-title{font-family:var(--font-head);font-size:30px;font-weight:800;color:var(--blue);letter-spacing:-1px;width:100%;max-width:480px;}
-.res-sub{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-top:2px;margin-bottom:4px;width:100%;max-width:480px;}
-#chart-outer{position:relative;width:100%;max-width:480px;}
-.chart-ylabel{position:absolute;left:6px;top:50%;transform:translateY(-50%) rotate(-90deg);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;pointer-events:none;}
-#chart-wrap{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 8px 8px 44px;}
-#res-chart{display:block;}
-#trial-table{width:100%;max-width:480px;border-collapse:collapse;}
-#trial-table th,#trial-table td{font-size:9px;padding:7px 8px;text-align:left;border-bottom:1px solid var(--border2);}
-#trial-table th{color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;font-weight:400;}
-#trial-table td{color:var(--text-mid);font-variant-numeric:tabular-nums;}
-#trial-table td.val{color:var(--text);}
-.thermal-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle;}
-.export-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%;max-width:480px;padding-bottom:60px;}
-
-#resume-banner{display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;width:100%;max-width:300px;text-align:center;font-size:10px;color:var(--text-mid);line-height:1.7;margin-bottom:4px;}
-#resume-banner strong{color:var(--text);}
-
-.rotate-hint{display:none;position:fixed;inset:0;background:var(--bg);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-size:11px;color:var(--text-dim);}
-@media(orientation:landscape){.rotate-hint{display:flex;}}
-#tap-flash{position:absolute;inset:0;background:#ffffff;opacity:0;pointer-events:none;transition:opacity 0.05s;}
-.hidden{display:none!important;}
+/* ══════════════════════════════
+   RESULTS
+══════════════════════════════ */
+#s-results{gap:0;padding:0;}
+.results-inner{
+  width:100%;max-width:480px;
+  display:flex;flex-direction:column;gap:12px;
+  padding:max(52px,env(safe-area-inset-top,20px)) 18px max(40px,env(safe-area-inset-bottom,20px));
+}
+.res-title{
+  font-family:var(--head);font-size:34px;font-weight:900;letter-spacing:-1.5px;
+  color:var(--blue);
+}
+.res-sub{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tx3);margin-top:2px;}
+#chart-wrap{
+  background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);
+  padding:16px 12px 8px;position:relative;
+}
+#res-chart{display:block;width:100%;}
+#trial-table{width:100%;border-collapse:collapse;}
+#trial-table th,#trial-table td{font-size:9px;padding:7px 6px;text-align:left;border-bottom:1px solid var(--bd2);}
+#trial-table th{color:var(--tx3);letter-spacing:1.5px;text-transform:uppercase;font-weight:400;}
+#trial-table td{color:var(--tx2);font-variant-numeric:tabular-nums;}
+#trial-table td.v{color:var(--tx);}
+.export-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding-top:4px;}
 </style>
 </head>
 <body>
 <div class="hz-unlock"></div>
+
+<!-- Portrait guard -->
 <div class="rotate-hint">
-  <div style="font-size:44px;animation:ra 2s ease-in-out infinite">📱</div>
+  <div style="font-size:40px;animation:tilt 2s ease-in-out infinite">📱</div>
   <div>Rotate to portrait</div>
 </div>
 
-<!-- HOME -->
+<!-- ════════════════════════════
+     SCREEN 1 — HOME
+════════════════════════════ -->
 <div class="screen active" id="s-home">
-  <div class="home-mark"></div>
-  <div class="home-title">Thermal HFP</div>
-  <div class="home-sub">Blue · Yellow · Flicker Null</div>
-  <p class="home-desc">Tracks how your OLED's <em>blue channel output</em> shifts as the phone heats up. Adjust the slider until flicker vanishes, then log the null point against device temperature.</p>
-  <div id="fps-badge">measuring display…</div>
-  <div id="resume-banner">
-    <strong id="resume-info">—</strong><br>Unsaved session found
-    <div class="btn-row" style="margin-top:10px">
-      <button class="btn-g" style="font-size:10px;padding:8px 16px" onclick="discardResume()">Discard</button>
-      <button class="btn-p" style="font-size:10px;padding:8px 16px;min-width:0" onclick="resumeSession()">Resume →</button>
-    </div>
-  </div>
-  <div class="btn-row" style="margin-top:12px">
-    <button class="btn-p" onclick="goSettings()">Configure →</button>
-  </div>
-  <p style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:20px;line-height:1.8;max-width:280px">Research only · not a medical device<br>Max brightness · True Tone &amp; Night Shift <strong style="color:var(--text-mid)">OFF</strong></p>
-</div>
-
-<!-- SETTINGS -->
-<div class="screen scroll" id="s-settings">
-  <div class="card" style="max-width:420px;width:100%">
-    <div class="card-label">Protocol</div>
-    <div class="row"><span class="row-label">Initial soak (sec)</span><input class="num-input" id="set-soak" type="number" min="0" max="600" value="120"></div>
-    <div class="row"><span class="row-label">Trials per session</span>
-      <select class="sel" id="set-trials"><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="10">10</option></select></div>
-    <div class="row"><span class="row-label">Inter-trial soak (sec)</span><input class="num-input" id="set-intersoak" type="number" min="0" max="300" value="60"></div>
-    <div class="row"><span class="row-label">Flicker rate (Hz)</span>
-      <select class="sel" id="set-hz" onchange="updateHzNote()">
-        <option value="10">10 Hz</option><option value="12">12 Hz</option>
-        <option value="15">15 Hz</option><option value="20">20 Hz</option>
-        <option value="25" selected>25 Hz</option><option value="30">30 Hz</option>
-        <option value="40">40 Hz</option><option value="60">60 Hz</option>
-      </select></div>
-  </div>
-  <div class="card" style="max-width:420px;width:100%">
-    <div class="card-label">Stimulus</div>
-    <div class="row"><span class="row-label">Blue RGB</span><input class="num-input" id="set-blue" type="text" value="0,0,255" style="width:100px"></div>
-    <div class="row"><span class="row-label">Yellow RGB</span><input class="num-input" id="set-yellow" type="text" value="255,200,0" style="width:100px"></div>
-    <div class="row"><span class="row-label">Yellow luminance (0–1)</span><input class="num-input" id="set-ylum" type="number" min="0.05" max="1" step="0.05" value="0.85"></div>
-    <div class="row"><span class="row-label">Disk size (% min-dim)</span><input class="num-input" id="set-disk" type="number" min="10" max="100" value="80"></div>
-    <div class="row"><span class="row-label">Full-field flicker</span>
-      <select class="sel" id="set-fullfield">
-        <option value="1" selected>Yes (max contrast)</option>
-        <option value="0">No (disk only)</option>
-      </select></div>
-    <div class="row"><span class="row-label">White blast (ms)</span><input class="num-input" id="set-blast" type="number" min="0" max="2000" step="100" value="500"></div>
-  </div>
-  <div class="card" style="max-width:420px;width:100%;font-size:10px;color:var(--text-dim);line-height:1.8">
-    <div class="card-label">Notes</div>
-    Flicker advances by exact frame count — no timestamp drift.
-    Yellow luminance is the fixed reference; blue slider finds the null.
-    Full-field mode flickers the entire screen for maximum photoreceptor contrast.
-    Trial sequence: pre-blast flicker → white blast → resume flicker for nulling.
-    Audio context runs during soak to draw DSP/CPU current alongside white screen heating.
-    IR readings entered manually post-hoc; temperature logged offline against trial timestamps.
-    <span id="hz-note" style="display:block;margin-top:6px;color:var(--text-mid)"></span>
-  </div>
+  <div class="logo-ring"></div>
+  <div class="logo-title">HFP</div>
+  <div class="logo-sub">Heterochromatic Flicker Photometry</div>
+  <p class="home-blurb">
+    Find the <em>null point</em> where blue and yellow flicker disappears.
+    Calibrate your CFF, then run repeated trials to track luminance drift.
+  </p>
+  <div id="fps-pill">detecting display…</div>
   <div class="btn-row">
-    <button class="btn-g" onclick="showScreen('s-home')">← Back</button>
-    <button class="btn-g" onclick="skipCFF()">Skip CFF →</button>
-    <button class="btn-p" onclick="launchCFF()">Calibrate CFF →</button>
+    <button class="btn-p" onclick="goCalibrate()">Calibrate CFF →</button>
   </div>
+  <p class="caution">Research use only · not a medical device<br>Max brightness · True Tone &amp; Night Shift <strong>OFF</strong></p>
 </div>
 
-<!-- SOAK -->
-<div class="screen" id="s-soak">
-  <canvas id="soak-canvas"></canvas>
-  <div class="soak-top">
-    <div class="soak-label">Heating phase</div>
-    <div id="soak-status">Full white · heating device</div>
-  </div>
-  <div class="soak-ui">
-    <div id="soak-countdown">—</div>
-    <button id="soak-begin-btn" onclick="soakDone()">Skip →</button>
-  </div>
-</div>
-
-<!-- CFF CALIBRATION -->
+<!-- ════════════════════════════
+     SCREEN 2 — CFF CALIBRATION
+════════════════════════════ -->
 <div class="screen" id="s-cff">
   <canvas id="cff-canvas"></canvas>
-  <div class="trial-top">
-    <div>
-      <div class="trial-meta">CFF Calibration</div>
-      <div class="trial-sub" id="cff-sub">Drag slider · find fusion threshold</div>
-    </div>
+
+  <div class="cff-top">
+    <div class="cff-label">CFF Calibration</div>
+    <div class="cff-hint">Drag slider until flicker just disappears</div>
   </div>
-  <div id="hz-badge-cff" style="position:absolute;top:50%;right:18px;transform:translateY(-50%);font-size:9px;letter-spacing:1.5px;color:#ffffff20;pointer-events:none;"></div>
-  <div class="trial-hud">
-    <div id="cff-badge" style="font-family:var(--font-head);font-size:28px;font-weight:700;color:#fff;letter-spacing:-0.5px;pointer-events:none;margin-bottom:4px;">— Hz</div>
-    <div style="font-size:8px;letter-spacing:2.5px;text-transform:uppercase;color:#ffffff30;margin-bottom:8px;pointer-events:none;">FLICKER FREQUENCY</div>
-    <div class="sl-wrap" id="cff-sl-wrap">
+
+  <div class="cff-hud">
+    <div class="hz-display" id="cff-hz-display">— Hz</div>
+    <div class="hz-actual"  id="cff-hz-actual">—</div>
+
+    <div class="sl-wrap" id="cff-sl">
       <div class="sl-track"></div>
-      <div class="sl-fill-blue"   id="cff-fill-lo"   style="width:50%"></div>
-      <div class="sl-fill-yellow" id="cff-fill-hi"   style="width:50%"></div>
-      <div class="sl-thumb"       id="cff-thumb"     style="left:50%"></div>
+      <div class="sl-fill-a" id="cff-fill-a" style="width:50%"></div>
+      <div class="sl-fill-b" id="cff-fill-b" style="width:50%"></div>
+      <div class="sl-thumb"  id="cff-thumb"  style="left:50%"></div>
     </div>
-    <div class="sl-labels"><span>← slower (flicker)</span><span>faster (fused) →</span></div>
-    <div style="font-size:9px;color:#ffffff25;text-align:center;margin-top:2px;pointer-events:none;">Find the point where flicker just disappears, then confirm</div>
-    <button id="cff-confirm-btn" style="pointer-events:all;margin-top:8px;padding:14px 36px;background:var(--blue);color:#fff;border:none;border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;touch-action:manipulation;" onclick="confirmCFF()">Set HFP frequency ✓</button>
+    <div class="sl-labels"><span>← slower (visible flicker)</span><span>faster (fused) →</span></div>
+
+    <div style="font-size:9px;color:#ffffff20;text-align:center;pointer-events:none;">
+      Find where flicker just disappears — that's your CFF
+    </div>
+
+    <button class="btn-y" style="margin-top:4px;" onclick="confirmCFF()">Set CFF &amp; Continue ✓</button>
   </div>
 </div>
 
-<!-- TRIAL -->
+<!-- ════════════════════════════
+     SCREEN 3 — TRIAL SETUP
+════════════════════════════ -->
+<div class="screen scrollable" id="s-setup">
+  <div class="setup-title">Trial Setup</div>
+  <div class="setup-sub">Configure your session</div>
+
+  <div class="cal-badge">
+    <span class="cal-lbl">Calibrated HFP Hz</span>
+    <span class="cal-val" id="setup-hz-display">—</span>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Protocol</div>
+    <div class="row">
+      <span class="row-lbl">Trials per session</span>
+      <select class="sel" id="set-trials">
+        <option value="4">4</option>
+        <option value="6" selected>6</option>
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="12">12</option>
+      </select>
+    </div>
+    <div class="row">
+      <span class="row-lbl">Inter-trial soak (sec)</span>
+      <input class="num-in" id="set-intersoak" type="number" min="10" max="300" value="60">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Stimulus</div>
+    <div class="row">
+      <span class="row-lbl">Blue RGB</span>
+      <input class="num-in" id="set-blue" type="text" value="0,0,255" style="width:110px">
+    </div>
+    <div class="row">
+      <span class="row-lbl">Yellow RGB</span>
+      <input class="num-in" id="set-yellow" type="text" value="255,200,0" style="width:110px">
+    </div>
+    <div class="row">
+      <span class="row-lbl">Yellow luminance</span>
+      <input class="num-in" id="set-ylum" type="number" min="0.1" max="1" step="0.05" value="0.85">
+    </div>
+    <div class="row">
+      <span class="row-lbl">Disk size (% screen)</span>
+      <input class="num-in" id="set-disk" type="number" min="20" max="100" value="80">
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-bottom:20px;">
+    <button class="btn-g" onclick="goCalibrate()">← Recalibrate</button>
+    <button class="btn-p" onclick="startSession()">Begin Session →</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════
+     SCREEN 4 — TRIAL
+     (flicker + soak, same screen)
+════════════════════════════ -->
 <div class="screen" id="s-trial">
+  <!-- Flicker canvas always running in background -->
   <canvas id="trial-canvas"></canvas>
-  <div id="tap-flash"></div>
+
+  <!-- White soak overlay — toggled on/off atomically -->
+  <div id="soak-overlay"></div>
+
+  <!-- Soak countdown (shown over white) -->
+  <div id="soak-hud">
+    <div id="soak-count">—</div>
+    <div id="soak-status-txt">Soak</div>
+  </div>
+
+  <!-- Top trial info strip -->
   <div class="trial-top">
     <div>
-      <div class="trial-meta" id="trial-num">Trial 1</div>
-      <div class="trial-sub">Drag slider · match blue luminance · minimize flicker</div>
+      <div class="trial-meta" id="trial-label">Trial 1</div>
+      <div class="trial-sub"  id="trial-hz-lbl">—</div>
     </div>
-    <div class="trial-dots" id="trial-dots"></div>
+    <div class="tdots" id="trial-dots"></div>
   </div>
-  <div id="hz-badge"></div>
-  <div class="trial-hud">
-    <div id="null-badge">—</div>
-    <div id="null-label">BLUE LUMINANCE NULL</div>
-    <div class="sl-wrap" id="sl-wrap">
+
+  <!-- Bottom HFP controls (hidden during soak) -->
+  <div class="trial-hud" id="trial-hud">
+    <div class="null-val" id="null-val">0.500</div>
+    <div class="null-lbl">BLUE LUMINANCE NULL</div>
+    <div class="sl-wrap" id="trial-sl">
       <div class="sl-track"></div>
-      <div class="sl-fill-blue"   id="sl-fill-blue"   style="width:50%"></div>
-      <div class="sl-fill-yellow" id="sl-fill-yellow" style="width:50%"></div>
-      <div class="sl-thumb"       id="sl-thumb"       style="left:50%"></div>
+      <div class="sl-fill-a" id="trial-fill-a" style="width:50%"></div>
+      <div class="sl-fill-b" id="trial-fill-b" style="width:50%"></div>
+      <div class="sl-thumb"  id="trial-thumb"  style="left:50%"></div>
     </div>
     <div class="sl-labels"><span>← more blue</span><span>more yellow →</span></div>
-    <button id="confirm-btn" onclick="confirmTrial()">Log null point ✓</button>
+    <button class="btn-y" id="confirm-btn" onclick="confirmTrial()">Log null point ✓</button>
   </div>
 </div>
 
-<!-- IR OVERLAY -->
-<div class="ir-overlay hidden" id="ir-overlay">
-  <div class="ir-title">Log Trial</div>
-  <div class="ir-body">Point IR thermometer at phone back.<br>Enter reading below (skip if no thermometer).</div>
-  <div class="state-pill" id="state-pills"></div>
-  <input class="ir-input" id="ir-temp-input" type="number" step="0.1" placeholder="°C or °F">
-  <div class="btn-row">
-    <button class="btn-g" onclick="skipIR()">Skip</button>
-    <button class="btn-p" onclick="saveIR()">Save →</button>
-  </div>
-</div>
-
-<!-- RESULTS -->
-<div class="screen scroll" id="s-results">
-  <div class="res-title">Results</div>
-  <div class="res-sub" id="res-sub">—</div>
-  <div id="chart-outer">
-    <span class="chart-ylabel">Blue null (t)</span>
+<!-- ════════════════════════════
+     SCREEN 5 — RESULTS
+════════════════════════════ -->
+<div class="screen scrollable" id="s-results">
+  <div class="results-inner">
+    <div>
+      <div class="res-title">Results</div>
+      <div class="res-sub" id="res-sub">—</div>
+    </div>
     <div id="chart-wrap"><canvas id="res-chart"></canvas></div>
-  </div>
-  <table id="trial-table">
-    <thead><tr><th>#</th><th>Time</th><th>Null t</th><th>IR°</th><th>Δnull</th><th>Battery</th></tr></thead>
-    <tbody id="trial-tbody"></tbody>
-  </table>
-  <div class="export-row">
-    <button class="btn-g" onclick="resetApp()">← New session</button>
-    <button class="btn-p" onclick="exportCSV()">Export CSV</button>
+    <table id="trial-table">
+      <thead>
+        <tr><th>#</th><th>Time</th><th>Null</th><th>Δ</th><th>Hz</th><th>Battery</th></tr>
+      </thead>
+      <tbody id="trial-tbody"></tbody>
+    </table>
+    <div class="export-row">
+      <button class="btn-g" onclick="resetApp()">← New session</button>
+      <button class="btn-p" onclick="exportCSV()">Export CSV</button>
+    </div>
   </div>
 </div>
 
 <script>
 'use strict';
 
-// ════════════════════════════════════════════════════════════
-// FIX 7: Consistent pure power-law gamma 2.2
-// (sRGB piecewise breakpoints + 2.2 exponent was inconsistent)
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// GAMMA + RGB HELPERS
+// ════════════════════════════════════════════════════════
 const GAMMA = 2.2;
-function lin(c8)   { return Math.pow(c8 / 255, GAMMA); }
-function enc(vLin) { return Math.round(Math.pow(Math.max(0, Math.min(1, vLin)), 1/GAMMA) * 255); }
+const lin = c8  => Math.pow(c8 / 255, GAMMA);
+const enc = vL  => Math.round(Math.pow(Math.max(0, Math.min(1, vL)), 1/GAMMA) * 255);
 
-// ════════════════════════════════════════════════════════════
-// FIX 4: Validated RGB parser
-// ════════════════════════════════════════════════════════════
-function parseRGB(str, fallback) {
-  const arr = str.split(',').map(s => Number(s.trim()));
-  if (arr.length !== 3 || arr.some(v => !Number.isFinite(v))) return fallback;
-  return arr.map(v => Math.max(0, Math.min(255, Math.round(v))));
+function parseRGB(str, fb) {
+  const a = str.split(',').map(s => Number(s.trim()));
+  if (a.length !== 3 || a.some(v => !Number.isFinite(v))) return fb;
+  return a.map(v => Math.max(0, Math.min(255, Math.round(v))));
 }
 
-// ════════════════════════════════════════════════════════════
-// CONFIG
-// ════════════════════════════════════════════════════════════
-let CFG = {
-  soakSec:120, nTrials:6, interSoakSec:60, flickerHz:15,
-  blueRGB:[0,0,255], yellowRGB:[255,200,0], yellowLum:0.85, diskPct:0.80,
-  fullField:true, blastMs:500,
-};
-
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // STATE
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 let ST = {
-  trialIndex:0, trials:[],
-  blueT:0.5,
-  animFrame:null, soakTimer:null, soakEnd:null,
-  sessionStart:Date.now(),
-  detectedHz:120,
-  frameCount:0,
-  framesPerHalf:4,
-  pendingSnapshot:null,
-  trialFlicker:null,
-  trialToken:0,
-  audioCtx:null,
+  displayHz:   120,      // detected screen refresh
+  cffHz:       25,       // user-found CFF value
+  hfpHz:       20,       // CFF - offset (used for trials)
+  framesPerHalf: 3,      // computed from displayHz / (hfpHz*2)
+
+  // trial session
+  nTrials:     6,
+  interSoakSec:60,
+  trials:      [],
+  trialIndex:  0,
+  sessionStart:0,
+
+  // adjustable stimulus
+  blueT:    0.5,
+  blueRGB:  [0, 0, 255],
+  yellowRGB:[255, 200, 0],
+  yellowLum:0.85,
+  diskPct:  0.80,
 };
 
-// CFF loop — declared here so stopAll() can reference it before startCFF() runs
-let cffLoop = null;
-
-// ════════════════════════════════════════════════════════════
-// FIX 6 + FIX 11: FPS detection — median IFI, runs once, then stops
-// ════════════════════════════════════════════════════════════
-(function detectFPS() {
+// ════════════════════════════════════════════════════════
+// DISPLAY RATE DETECTION
+// Median IFI over ~2s, then stops.
+// ════════════════════════════════════════════════════════
+(function detectHz() {
   const ts = [];
   function tick(now) {
     ts.push(now);
     if (now - ts[0] < 2200) { requestAnimationFrame(tick); return; }
-    // Median inter-frame interval over the last second
     const recent = ts.filter(t => t > now - 1100);
     const ifi = [];
     for (let i = 1; i < recent.length; i++) ifi.push(recent[i] - recent[i-1]);
     ifi.sort((a,b) => a-b);
-    const med = ifi[Math.floor(ifi.length/2)] || 8.33;
-    ST.detectedHz = Math.round(1000/med);
-    const ok = ST.detectedHz >= 100;
-    const label = ok ? `${ST.detectedHz} Hz ✓` : `${ST.detectedHz} Hz — 120Hz preferred`;
-    const b = document.getElementById('fps-badge');
-    if (b) { b.textContent = label; b.style.color = ok ? '#34d399' : '#f5c842'; }
-    updateHzNote();
-    // Detection complete — no further rAF scheduled (FIX 11)
+    const med = ifi[Math.floor(ifi.length / 2)] || 8.33;
+    ST.displayHz = Math.round(1000 / med);
+    const ok = ST.displayHz >= 100;
+    const pill = document.getElementById('fps-pill');
+    if (pill) {
+      pill.textContent = `${ST.displayHz} Hz display${ok ? ' ✓' : ' — 120 Hz preferred'}`;
+      pill.style.color = ok ? 'var(--grn)' : 'var(--yel)';
+      pill.style.borderColor = ok ? '#3ecf8e40' : '#f0c04040';
+    }
   }
   requestAnimationFrame(tick);
 })();
 
-function updateHzNote() {
-  const note = document.getElementById('hz-note');
-  if (!note) return;
-  const hz = parseFloat(document.getElementById('set-hz')?.value) || CFG.flickerHz;
-  const fph = Math.max(1, Math.round(ST.detectedHz / (hz * 2)));
-  const actual = ST.detectedHz / (fph * 2);
-  if (fph < 1) {
-    note.textContent = `⚠ ${hz} Hz exceeds display at ${ST.detectedHz} Hz`;
-    note.style.color = 'var(--red)';
-  } else {
-    note.textContent = `${hz} Hz → ${fph} frame${fph!==1?'s':''}/half = actual ${actual.toFixed(1)} Hz at ${ST.detectedHz} Hz display`;
-    note.style.color = 'var(--text-mid)';
-  }
+// Compute framesPerHalf for a given flicker Hz
+function fph(hz) {
+  return Math.max(1, Math.round(ST.displayHz / (hz * 2)));
+}
+function actualHz(hz) {
+  return ST.displayHz / (fph(hz) * 2);
 }
 
-// ════════════════════════════════════════════════════════════
-// PERSISTENCE — FIX 9: save to localStorage after each trial
-// ════════════════════════════════════════════════════════════
-const LS_KEY = 'thfp_v1';
-
-function saveToStorage() {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify({
-      trials:ST.trials, trialIndex:ST.trialIndex,
-      cfg:CFG, sessionStart:ST.sessionStart, savedAt:Date.now(),
-    }));
-  } catch(e) {}
-}
-
-function loadFromStorage() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e) { return null; }
-}
-
-function clearStorage() {
-  try { localStorage.removeItem(LS_KEY); } catch(e) {}
-}
-
-function checkResume() {
-  const s = loadFromStorage();
-  if (!s || !s.trials || s.trials.length === 0) return;
-  const mins = Math.round((Date.now() - s.savedAt) / 60000);
-  document.getElementById('resume-info').textContent =
-    `${s.trials.length} trial${s.trials.length!==1?'s':''} · ${mins}m ago`;
-  document.getElementById('resume-banner').style.display = 'block';
-}
-
-function resumeSession() {
-  const s = loadFromStorage();
-  if (!s) return;
-  ST.trials = s.trials; ST.trialIndex = s.trialIndex;
-  ST.sessionStart = s.sessionStart;
-  Object.assign(CFG, s.cfg);
-  document.getElementById('resume-banner').style.display = 'none';
-  showResults();
-}
-
-function discardResume() {
-  clearStorage();
-  document.getElementById('resume-banner').style.display = 'none';
-}
-
-// ════════════════════════════════════════════════════════════
-// NAV
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// SCREEN NAV
+// ════════════════════════════════════════════════════════
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  if (id !== 's-soak' && id !== 's-trial') stopAll();
 }
 
-function stopAll() {
-  if (ST.animFrame)    { cancelAnimationFrame(ST.animFrame); ST.animFrame = null; }
-  if (ST.soakTimer)    { clearInterval(ST.soakTimer); ST.soakTimer = null; }
-  if (ST.trialFlicker) { ST.trialFlicker.stop(); ST.trialFlicker = null; }
-  if (cffLoop)         { cffLoop.stop(); cffLoop = null; }
-  ST.trialToken++;     // invalidate any pending blast timeouts
-  stopAudioLoad();
-}
-
-function goSettings() { showScreen('s-settings'); updateHzNote(); }
-
-// ════════════════════════════════════════════════════════════
-// READ SETTINGS
-// ════════════════════════════════════════════════════════════
-function readSettings() {
-  CFG.soakSec      = Math.max(0, parseInt(document.getElementById('set-soak').value)      || 120);
-  CFG.nTrials      = parseInt(document.getElementById('set-trials').value)                 || 6;
-  CFG.interSoakSec = Math.max(0, parseInt(document.getElementById('set-intersoak').value) || 60);
-  CFG.flickerHz    = parseFloat(document.getElementById('set-hz').value)                   || 15;
-  CFG.yellowLum    = Math.max(0.05, Math.min(1, parseFloat(document.getElementById('set-ylum').value) || 0.85));
-  CFG.diskPct      = Math.max(0.05, Math.min(1.0, (parseInt(document.getElementById('set-disk').value) || 80) / 100));
-  CFG.blueRGB      = parseRGB(document.getElementById('set-blue').value,   [0,0,255]);
-  CFG.yellowRGB    = parseRGB(document.getElementById('set-yellow').value, [255,200,0]);
-  CFG.fullField    = document.getElementById('set-fullfield').value === '1';
-  CFG.blastMs      = Math.max(0, parseInt(document.getElementById('set-blast').value) || 500);
-  // precompute frames-per-half from actual detected Hz
-  ST.framesPerHalf = Math.max(1, Math.round(ST.detectedHz / (CFG.flickerHz * 2)));
-}
-
-// ════════════════════════════════════════════════════════════
-// SOAK
-// ════════════════════════════════════════════════════════════
-const soakCanvas = document.getElementById('soak-canvas');
-let soakCtx = null;
-
-function startSoak(isFirst) {
-  readSettings();
-  if (isFirst) {
-    // FIX 2: reset sessionStart and clear state on new session
-    ST.trials = []; ST.trialIndex = 0;
-    ST.sessionStart = Date.now();
-    ST.pendingSnapshot = null;
-    clearStorage();
-  }
-  if (!soakCtx) soakCtx = soakCanvas.getContext('2d');
-  soakCanvas.width  = window.innerWidth;
-  soakCanvas.height = window.innerHeight;
-  ST.soakEnd = performance.now() + (isFirst ? CFG.soakSec : CFG.interSoakSec) * 1000;
-  document.getElementById('soak-status').textContent = isFirst
-    ? `Full white · heating · trial 1 of ${CFG.nTrials} coming`
-    : `Heating · trial ${ST.trialIndex+1} of ${CFG.nTrials} next`;
-  showScreen('s-soak');
-  soakCtx.fillStyle = '#ffffff';
-  soakCtx.fillRect(0, 0, soakCanvas.width, soakCanvas.height);
-  startAudioLoad(); // draw current during heating
-  if (ST.soakTimer) clearInterval(ST.soakTimer);
-  ST.soakTimer = setInterval(soakTick, 250);
-}
-
-function soakTick() {
-  const rem = Math.max(0, (ST.soakEnd - performance.now()) / 1000);
-  document.getElementById('soak-countdown').textContent = rem > 0 ? Math.ceil(rem) : '0';
-  if (rem <= 0) { clearInterval(ST.soakTimer); ST.soakTimer = null; soakDone(); }
-}
-
-function soakDone() {
-  if (ST.soakTimer) { clearInterval(ST.soakTimer); ST.soakTimer = null; }
-  stopAudioLoad();
-  startTrial();
-}
-
-// ════════════════════════════════════════════════════════════
-// TRIAL
-// ════════════════════════════════════════════════════════════
-const trialCanvas = document.getElementById('trial-canvas');
-let trialCtx = null;
-
-function startTrial() {
-  if (!trialCtx) trialCtx = trialCanvas.getContext('2d');
-
-  // Stop any previous loop before touching the screen
-  if (ST.trialFlicker) { ST.trialFlicker.stop(); ST.trialFlicker = null; }
-
-  showScreen('s-trial');
-
-  requestAnimationFrame(() => {
-    trialCanvas.width  = window.innerWidth;
-    trialCanvas.height = window.innerHeight;
-
-    ST.blueT = 0.5;
-    document.getElementById('trial-num').textContent = `Trial ${ST.trialIndex+1} of ${CFG.nTrials}`;
-    document.getElementById('hz-badge').textContent  = `${CFG.flickerHz} Hz · ${ST.framesPerHalf}f`;
-
-    const dw = document.getElementById('trial-dots');
-    dw.innerHTML = '';
-    for (let i = 0; i < CFG.nTrials; i++) {
-      const d = document.createElement('div');
-      d.className = 'tdot' + (i < ST.trialIndex ? ' done' : i===ST.trialIndex ? ' active' : '');
-      dw.appendChild(d);
-    }
-    initSlider();
-    updateNullBadge();
-    document.getElementById('ir-overlay').classList.add('hidden');
-
-    // Create flicker loop for this trial (closure captures current ST.blueT via getter)
-    const fl = makeFlickerLoop(
-      trialCanvas, trialCtx,
-      () => CFG.flickerHz,
-      () => CFG.blueRGB.map(c => enc(lin(c) * ST.blueT)),
-      () => CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum)),
-      false // respects CFG.fullField inside makeFlickerLoop
-    );
-    ST.trialFlicker = fl;
-
-    // Sequence: flicker → white blast → flicker
-    // Use a trial-scoped token so stale timeouts from aborted trials are harmless
-    const trialToken = ++ST.trialToken;
-
-    fl.start();
-
-    if (CFG.blastMs > 0) {
-      // After 400ms of pre-blast flicker, hit white
-      setTimeout(() => {
-        if (ST.trialToken !== trialToken) return; // trial was cancelled
-        fl.stop();
-        trialCtx.fillStyle = '#ffffff';
-        trialCtx.fillRect(0, 0, trialCanvas.width, trialCanvas.height);
-
-        // Hold white for blastMs, then restart flicker
-        setTimeout(() => {
-          if (ST.trialToken !== trialToken) return;
-          fl.start(); // starts with fresh phase
-        }, CFG.blastMs);
-      }, 400);
-    }
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-// SLIDER
-// ════════════════════════════════════════════════════════════
-function initSlider() {
-  const old = document.getElementById('sl-wrap');
-  const nw  = old.cloneNode(true);
-  old.parentNode.replaceChild(nw, old);
-  const thumb  = nw.querySelector('#sl-thumb');
-  const fillB  = nw.querySelector('#sl-fill-blue');
-  const fillY  = nw.querySelector('#sl-fill-yellow');
+// ════════════════════════════════════════════════════════
+// GENERIC SLIDER BUILDER
+// opts: { wrap, fillA, fillB, thumb, onChange, initialPct }
+// Returns { setPct }
+// ════════════════════════════════════════════════════════
+function makeSlider(opts) {
+  const wrap  = document.getElementById(opts.wrap);
+  const fillA = document.getElementById(opts.fillA);
+  const fillB = document.getElementById(opts.fillB);
+  const thumb = document.getElementById(opts.thumb);
   let dragging = false;
 
-  function setPct(pct) {
-    ST.blueT = Math.max(0, Math.min(1, pct));
-    const p = ST.blueT * 100;
-    fillB.style.width = p + '%';
-    fillY.style.width = (100-p) + '%';
-    thumb.style.left  = p + '%';
-    updateNullBadge();
+  // Clear old listeners by replacing element
+  const nw = wrap.cloneNode(true);
+  wrap.parentNode.replaceChild(nw, wrap);
+  const nFillA = nw.querySelector('#' + opts.fillA);
+  const nFillB = nw.querySelector('#' + opts.fillB);
+  const nThumb = nw.querySelector('#' + opts.thumb);
+
+  function applyPct(pct) {
+    pct = Math.max(0, Math.min(1, pct));
+    const p = pct * 100;
+    nFillA.style.width = p + '%';
+    nFillB.style.width = (100 - p) + '%';
+    nThumb.style.left  = p + '%';
+    opts.onChange(pct);
   }
   function fromX(cx) {
     const r = nw.getBoundingClientRect();
-    setPct((cx - r.left) / r.width);
+    applyPct((cx - r.left) / r.width);
   }
   nw.addEventListener('pointerdown', e => {
-    e.preventDefault(); dragging=true; nw.classList.add('dragging');
-    nw.setPointerCapture(e.pointerId); fromX(e.clientX);
+    e.preventDefault(); dragging = true;
+    nw.classList.add('dragging');
+    nw.setPointerCapture(e.pointerId);
+    fromX(e.clientX);
   });
-  nw.addEventListener('pointermove', e => { if(!dragging)return; e.preventDefault(); fromX(e.clientX); });
-  nw.addEventListener('pointerup',     () => { dragging=false; nw.classList.remove('dragging'); });
-  nw.addEventListener('pointercancel', () => { dragging=false; nw.classList.remove('dragging'); });
-  setPct(0.5);
+  nw.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    fromX(e.clientX);
+  });
+  nw.addEventListener('pointerup',     () => { dragging = false; nw.classList.remove('dragging'); });
+  nw.addEventListener('pointercancel', () => { dragging = false; nw.classList.remove('dragging'); });
+
+  // seed
+  applyPct(opts.initialPct !== undefined ? opts.initialPct : 0.5);
+
+  return { setPct: applyPct };
 }
 
-function updateNullBadge() {
-  document.getElementById('null-badge').textContent = ST.blueT.toFixed(3);
-}
-
-// ════════════════════════════════════════════════════════════
-// AUDIO THERMAL LOAD
-// Runs a silent oscillator during soak to draw CPU/DSP current.
-// This supplements the white screen for more consistent heating.
-// ════════════════════════════════════════════════════════════
-function startAudioLoad() {
-  try {
-    if (ST.audioCtx) { ST.audioCtx.close(); ST.audioCtx = null; }
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    gain.gain.value = 0; // silent — just draws current
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    ST.audioCtx = ctx;
-  } catch(e) {}
-}
-function stopAudioLoad() {
-  if (ST.audioCtx) { try { ST.audioCtx.close(); } catch(e) {} ST.audioCtx = null; }
-}
-
-// ════════════════════════════════════════════════════════════
-// FLICKER LOOP — shared by CFF calibration and HFP trials
-// phase=0 → colorA, phase=1 → colorB, driven by integer frame count
-// ════════════════════════════════════════════════════════════
-function makeFlickerLoop(canvas, ctx, getHz, getColorA, getColorB, fullField) {
+// ════════════════════════════════════════════════════════
+// FLICKER ENGINE — makeFlickerLoop
+// Drives a canvas at integer frame counts.
+// phase = floor(frameCount / fph) % 2
+// Completely frame-count-based; no setTimeout, no Date.now drift.
+// ════════════════════════════════════════════════════════
+function makeFlickerLoop(canvas, ctx, getHz, getColorA, getColorB, opts) {
+  // opts: { fullField, diskPct }
   let frameCount = 0;
-  let running = false;
-  let rafHandle = null;
-
-  function framesPerHalf() {
-    return Math.max(1, Math.round(ST.detectedHz / (getHz() * 2)));
-  }
+  let running    = false;
+  let raf        = null;
 
   function loop() {
-    rafHandle = null;
+    raf = null;
     if (!running) return;
     const W = canvas.width, H = canvas.height;
-    if (!W || !H) { rafHandle = requestAnimationFrame(loop); return; }
+    if (!W || !H) { raf = requestAnimationFrame(loop); return; }
 
-    const fph = framesPerHalf();
-    const phase = Math.floor(frameCount / fph) % 2;
+    const f    = fph(getHz());
+    const phase = Math.floor(frameCount / f) % 2;
     frameCount++;
 
-    const dc = phase === 0 ? getColorA() : getColorB();
-    const colorStr = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
-    const cx = W * 0.5, cy = H * 0.38;
+    const dc  = phase === 0 ? getColorA() : getColorB();
+    const col = `rgb(${dc[0]},${dc[1]},${dc[2]})`;
+    const cx  = W * 0.5, cy = H * 0.4;
 
-    if (fullField || CFG.fullField) {
-      ctx.fillStyle = colorStr;
+    if (opts && opts.fullField) {
+      ctx.fillStyle = col;
       ctx.fillRect(0, 0, W, H);
-      // Subtle fixation cross
-      const fix = phase === 0 ? '#ffffff30' : '#00000030';
-      ctx.strokeStyle = fix; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(cx-12,cy); ctx.lineTo(cx+12,cy); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx,cy-12); ctx.lineTo(cx,cy+12); ctx.stroke();
+      // fixation cross
+      ctx.strokeStyle = phase === 0 ? '#ffffff28' : '#00000028';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cx-14,cy); ctx.lineTo(cx+14,cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx,cy-14); ctx.lineTo(cx,cy+14); ctx.stroke();
     } else {
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-      const r = Math.round(Math.min(W,H) * CFG.diskPct);
-      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
-      ctx.fillStyle = colorStr; ctx.fill();
-      ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2);
+      const r = Math.round(Math.min(W, H) * (opts && opts.diskPct ? opts.diskPct : 0.8) * 0.5);
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.fillStyle = col; ctx.fill();
+      // fixation dot
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
       ctx.fillStyle = '#000'; ctx.fill();
     }
 
-    rafHandle = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(loop);
   }
 
   return {
-    start() { frameCount = 0; running = true; if (!rafHandle) rafHandle = requestAnimationFrame(loop); },
-    stop()  { running = false; if (rafHandle) { cancelAnimationFrame(rafHandle); rafHandle = null; } },
-    resetPhase() { frameCount = 0; },
-    getHz:  framesPerHalf,
+    start() {
+      if (running) return;
+      frameCount = 0;
+      running = true;
+      if (!raf) raf = requestAnimationFrame(loop);
+    },
+    restart() {
+      // Resume without resetting frame count phase (smooth resume)
+      if (running) return;
+      running = true;
+      if (!raf) raf = requestAnimationFrame(loop);
+    },
+    stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+    },
+    isRunning() { return running; },
   };
 }
 
-function launchCFF() { readSettings(); startCFF(); }
-function skipCFF()   { readSettings(); startSoak(true); }
+// ════════════════════════════════════════════════════════
+// CFF CALIBRATION SCREEN
+// ════════════════════════════════════════════════════════
+let cffCanvas, cffCtx, cffLoop;
+const CFF_MIN = 5, CFF_MAX = 60;
 
-// ════════════════════════════════════════════════════════════
-// CFF CALIBRATION
-// Subject drags a Hz slider to find their fusion frequency.
-// That value becomes the HFP flicker rate for all trials.
-// ════════════════════════════════════════════════════════════
-const cffCanvas = document.getElementById('cff-canvas');
-let cffCtx = null;
-let cffHz = 25;
+function goCalibrate() {
+  if (!cffCanvas) {
+    cffCanvas = document.getElementById('cff-canvas');
+    cffCtx    = cffCanvas.getContext('2d');
+  }
 
-function startCFF() {
-  if (!cffCtx) cffCtx = cffCanvas.getContext('2d');
+  // Stop any running trial engine
+  stopTrialEngine();
+
   showScreen('s-cff');
+
   requestAnimationFrame(() => {
     cffCanvas.width  = window.innerWidth;
     cffCanvas.height = window.innerHeight;
-    cffHz = CFG.flickerHz; // seed from settings
 
-    // CFF uses equal-luminance blue/yellow at fixed 85% — subject only adjusts Hz
-    if (cffLoop) cffLoop.stop();
+    // Seed Hz to previous CFF or 25
+    ST.cffHz = ST.cffHz || 25;
+
+    if (cffLoop) { cffLoop.stop(); cffLoop = null; }
+
     cffLoop = makeFlickerLoop(
       cffCanvas, cffCtx,
-      () => cffHz,
-      () => CFG.blueRGB.map(c => enc(lin(c) * 0.85)),    // blue at fixed 85%
-      () => CFG.yellowRGB.map(c => enc(lin(c) * CFG.yellowLum)),
-      true  // always full-field for CFF
+      () => ST.cffHz,
+      () => [
+        enc(lin(ST.blueRGB[0]) * 0.85),
+        enc(lin(ST.blueRGB[1]) * 0.85),
+        enc(lin(ST.blueRGB[2]) * 0.85),
+      ],
+      () => [
+        enc(lin(ST.yellowRGB[0]) * ST.yellowLum),
+        enc(lin(ST.yellowRGB[1]) * ST.yellowLum),
+        enc(lin(ST.yellowRGB[2]) * ST.yellowLum),
+      ],
+      { fullField: false, diskPct: 0.80 }  // disk flicker for CFF
     );
+
     cffLoop.start();
-    initCFFSlider();
-    updateCFFBadge();
+    updateCFFDisplay();
+
+    makeSlider({
+      wrap:    'cff-sl',
+      fillA:   'cff-fill-a',
+      fillB:   'cff-fill-b',
+      thumb:   'cff-thumb',
+      initialPct: (ST.cffHz - CFF_MIN) / (CFF_MAX - CFF_MIN),
+      onChange(pct) {
+        ST.cffHz = Math.round(CFF_MIN + pct * (CFF_MAX - CFF_MIN));
+        ST.cffHz = Math.max(CFF_MIN, Math.min(CFF_MAX, ST.cffHz));
+        updateCFFDisplay();
+      },
+    });
   });
 }
 
-function initCFFSlider() {
-  const MIN_HZ = 5, MAX_HZ = 60;
-  const old = document.getElementById('cff-sl-wrap');
-  const nw  = old.cloneNode(true);
-  old.parentNode.replaceChild(nw, old);
-  const thumb  = nw.querySelector('#cff-thumb');
-  const fillLo = nw.querySelector('#cff-fill-lo');
-  const fillHi = nw.querySelector('#cff-fill-hi');
-  let dragging = false;
-
-  function setPct(pct) {
-    pct = Math.max(0, Math.min(1, pct));
-    cffHz = MIN_HZ + pct * (MAX_HZ - MIN_HZ);
-    // snap to integer
-    cffHz = Math.round(cffHz);
-    const p = (cffHz - MIN_HZ) / (MAX_HZ - MIN_HZ) * 100;
-    fillLo.style.width = p + '%';
-    fillHi.style.width = (100-p) + '%';
-    thumb.style.left  = p + '%';
-    updateCFFBadge();
-  }
-  function fromX(cx) {
-    const r = nw.getBoundingClientRect();
-    setPct((cx - r.left) / r.width);
-  }
-  nw.addEventListener('pointerdown', e => { e.preventDefault(); dragging=true; nw.classList.add('dragging'); nw.setPointerCapture(e.pointerId); fromX(e.clientX); });
-  nw.addEventListener('pointermove', e => { if(!dragging)return; e.preventDefault(); fromX(e.clientX); });
-  nw.addEventListener('pointerup',     () => { dragging=false; nw.classList.remove('dragging'); });
-  nw.addEventListener('pointercancel', () => { dragging=false; nw.classList.remove('dragging'); });
-  // seed position
-  const p0 = (cffHz - MIN_HZ) / (MAX_HZ - MIN_HZ);
-  setPct(p0);
-}
-
-function updateCFFBadge() {
-  const fph = Math.max(1, Math.round(ST.detectedHz / (cffHz * 2)));
-  const actual = (ST.detectedHz / (fph * 2)).toFixed(1);
-  document.getElementById('cff-badge').textContent = `${cffHz} Hz`;
-  document.getElementById('hz-badge-cff').textContent = `actual ${actual} Hz · ${fph}f/half`;
+function updateCFFDisplay() {
+  const ah = actualHz(ST.cffHz).toFixed(1);
+  const f  = fph(ST.cffHz);
+  document.getElementById('cff-hz-display').textContent = `${ST.cffHz} Hz`;
+  document.getElementById('cff-hz-actual').textContent  = `actual ${ah} Hz · ${f} frame${f!==1?'s':''}/half`;
 }
 
 function confirmCFF() {
   if (cffLoop) { cffLoop.stop(); cffLoop = null; }
-  // HFP frequency: CFF - 5 Hz (needs to be below fusion to see flicker), min 10
-  const hfpHz = Math.max(10, cffHz - 5);
-  CFG.flickerHz = hfpHz;
-  ST.framesPerHalf = Math.max(1, Math.round(ST.detectedHz / (hfpHz * 2)));
-  // Snap the settings dropdown to nearest available option
-  const opts = [...document.getElementById('set-hz').options].map(o => +o.value);
-  const nearest = opts.reduce((best,v) => Math.abs(v-hfpHz) < Math.abs(best-hfpHz) ? v : best, opts[0]);
-  document.getElementById('set-hz').value = nearest;
-  startSoak(true);
+
+  // HFP Hz is 5 below CFF (visible flicker), clamped to min 5
+  ST.hfpHz = Math.max(5, ST.cffHz - 5);
+  ST.framesPerHalf = fph(ST.hfpHz);
+
+  // Show trial setup
+  document.getElementById('setup-hz-display').textContent =
+    `${ST.hfpHz} Hz (${actualHz(ST.hfpHz).toFixed(1)} actual)`;
+
+  showScreen('s-setup');
 }
 
-// ════════════════════════════════════════════════════════════
-// CONFIRM — FIX 10: snapshot once, reuse in finalizeTrial
-// ════════════════════════════════════════════════════════════
-function confirmTrial() {
-  ST.pendingSnapshot = {
-    nullVal:      ST.blueT,
-    thermalState: getThermalState(),
-    battery:      getBatteryInfo(),
-    timestamp:    new Date().toISOString(),
-    elapsedMs:    Date.now() - ST.sessionStart,
-  };
-  const s = ST.pendingSnapshot;
-  const pw = document.getElementById('state-pills');
-  pw.innerHTML = '';
-  const tp = document.createElement('div');
-  tp.className = `pill ${s.thermalState.state}`;
-  tp.textContent = `thermal: ${s.thermalState.state}`;
-  pw.appendChild(tp);
-  const bp = document.createElement('div');
-  bp.className = 'pill'; bp.style.color='var(--text-mid)';
-  bp.textContent = `battery: ${s.battery.level!==null ? Math.round(s.battery.level*100)+'%' : '—'}`;
-  pw.appendChild(bp);
-  if (s.battery.state) {
-    const bsp = document.createElement('div');
-    bsp.className='pill'; bsp.style.color='var(--text-dim)';
-    bsp.textContent = s.battery.state;
-    pw.appendChild(bsp);
+// ════════════════════════════════════════════════════════
+// TRIAL SETUP SCREEN — read settings then start
+// ════════════════════════════════════════════════════════
+function readSetup() {
+  ST.nTrials      = Math.max(1, parseInt(document.getElementById('set-trials').value) || 6);
+  ST.interSoakSec = Math.max(5, parseInt(document.getElementById('set-intersoak').value) || 60);
+  ST.blueRGB      = parseRGB(document.getElementById('set-blue').value,   [0,0,255]);
+  ST.yellowRGB    = parseRGB(document.getElementById('set-yellow').value, [255,200,0]);
+  ST.yellowLum    = Math.max(0.1, Math.min(1, parseFloat(document.getElementById('set-ylum').value) || 0.85));
+  ST.diskPct      = Math.max(0.2, Math.min(1, (parseInt(document.getElementById('set-disk').value) || 80) / 100));
+}
+
+function startSession() {
+  readSetup();
+  ST.trials = [];
+  ST.trialIndex = 0;
+  ST.sessionStart = Date.now();
+  initTrialScreen();
+  launchTrial();
+}
+
+// ════════════════════════════════════════════════════════
+// TRIAL ENGINE
+//
+// This is the core of the redesign. One rAF loop drives
+// the flicker canvas continuously. The soak overlay is an
+// absolutely-positioned <div> that turns white (opacity:1)
+// on top of it. Switching is just one DOM property change —
+// atomic, no setTimeout chains, no cancellable callbacks.
+//
+// State machine:
+//   FLICKER → user confirms → SOAK (white overlay + countdown)
+//             countdown ends → FLICKER (overlay hidden again)
+//             repeat until nTrials done → RESULTS
+// ════════════════════════════════════════════════════════
+let trialCanvas, trialCtx, trialLoop;
+let soakInterval = null;
+
+function initTrialScreen() {
+  if (!trialCanvas) {
+    trialCanvas = document.getElementById('trial-canvas');
+    trialCtx    = trialCanvas.getContext('2d');
   }
-  document.getElementById('ir-temp-input').value = '';
-  document.getElementById('ir-overlay').classList.remove('hidden');
+  trialCanvas.width  = window.innerWidth;
+  trialCanvas.height = window.innerHeight;
+
+  if (!trialLoop) {
+    trialLoop = makeFlickerLoop(
+      trialCanvas, trialCtx,
+      () => ST.hfpHz,
+      () => {
+        // Blue at current blueT
+        const bL = lin(ST.blueRGB[0]) * ST.blueT;  // all channels for tinted blue
+        return [
+          enc(lin(ST.blueRGB[0]) * ST.blueT),
+          enc(lin(ST.blueRGB[1]) * ST.blueT),
+          enc(lin(ST.blueRGB[2]) * ST.blueT),
+        ];
+      },
+      () => [
+        enc(lin(ST.yellowRGB[0]) * ST.yellowLum),
+        enc(lin(ST.yellowRGB[1]) * ST.yellowLum),
+        enc(lin(ST.yellowRGB[2]) * ST.yellowLum),
+      ],
+      { fullField: false, diskPct: ST.diskPct }
+    );
+  }
 }
 
-function skipIR() { finalizeTrial(null); }
-function saveIR()  {
-  const v = parseFloat(document.getElementById('ir-temp-input').value);
-  finalizeTrial(isNaN(v) ? null : v);
+function stopTrialEngine() {
+  if (trialLoop) { trialLoop.stop(); }
+  clearSoakInterval();
+  stopAudioLoad();
+  // Immediately hide soak overlay
+  setSoak(false);
 }
 
-function finalizeTrial(irTemp) {
-  document.getElementById('ir-overlay').classList.add('hidden');
-  const s = ST.pendingSnapshot;
-  const baseline = ST.trials.length > 0 ? ST.trials[0].nullVal : s.nullVal;
-  ST.trials.push({
-    index:         ST.trialIndex+1,
-    timestamp:     s.timestamp,
-    elapsedMs:     s.elapsedMs,
-    nullVal:       s.nullVal,
-    deltaNullVal:  +(s.nullVal - baseline).toFixed(5),
-    irTemp,
-    thermalState:  s.thermalState.state,
-    batteryLevel:  s.battery.level,
-    batteryState:  s.battery.state,
-    flickerHz:     CFG.flickerHz,
-    framesPerHalf: ST.framesPerHalf,
-    displayHz:     ST.detectedHz,
+// Atomically show/hide soak (one synchronous DOM write)
+function setSoak(on) {
+  const overlay = document.getElementById('soak-overlay');
+  const hud     = document.getElementById('soak-hud');
+  const thud    = document.getElementById('trial-hud');
+  if (on) {
+    overlay.classList.add('visible');
+    hud.classList.add('visible');
+    thud.classList.add('hidden-hud');
+  } else {
+    overlay.classList.remove('visible');
+    hud.classList.remove('visible');
+    thud.classList.remove('hidden-hud');
+  }
+}
+
+function clearSoakInterval() {
+  if (soakInterval) { clearInterval(soakInterval); soakInterval = null; }
+}
+
+function launchTrial() {
+  // Update UI dots and label
+  buildDots();
+  document.getElementById('trial-label').textContent =
+    `Trial ${ST.trialIndex + 1} of ${ST.nTrials}`;
+  document.getElementById('trial-hz-lbl').textContent =
+    `${ST.hfpHz} Hz · ${actualHz(ST.hfpHz).toFixed(1)} actual`;
+
+  // Reset blue luminance to 0.5 (or seed from previous trial if we have one)
+  if (ST.trials.length > 0) {
+    // Start near last null as convenience
+    ST.blueT = ST.trials[ST.trials.length - 1].nullVal;
+  } else {
+    ST.blueT = 0.5;
+  }
+  updateNullDisplay();
+
+  // Ensure soak is hidden, flicker running
+  setSoak(false);
+
+  showScreen('s-trial');
+
+  // Start or resume flicker
+  if (!trialLoop.isRunning()) trialLoop.start();
+  else trialLoop.restart();
+
+  // Build slider
+  makeSlider({
+    wrap:    'trial-sl',
+    fillA:   'trial-fill-a',
+    fillB:   'trial-fill-b',
+    thumb:   'trial-thumb',
+    initialPct: ST.blueT,
+    onChange(pct) {
+      ST.blueT = pct;
+      updateNullDisplay();
+    },
   });
-  const flash = document.getElementById('tap-flash');
-  flash.style.opacity='0.25'; setTimeout(()=>{ flash.style.opacity='0'; },120);
-  saveToStorage();  // FIX 9
-  ST.trialIndex++;
-  if (ST.trialIndex >= CFG.nTrials) { stopAll(); clearStorage(); showResults(); }
-  else startSoak(false);
 }
 
-// ════════════════════════════════════════════════════════════
-// PHONE STATE
-// ════════════════════════════════════════════════════════════
-function getThermalState() {
-  // NSProcessInfo.thermalState not accessible from browser JS on iOS.
-  return { state:'unknown', raw:null };
+function updateNullDisplay() {
+  document.getElementById('null-val').textContent = ST.blueT.toFixed(3);
 }
-function getBatteryInfo() {
-  if (window._batteryCache) return {
-    level: window._batteryCache.level,
-    state: window._batteryCache.charging ? 'charging' : 'discharging',
-  };
-  return { level:null, state:null };
+
+function buildDots() {
+  const wrap = document.getElementById('trial-dots');
+  wrap.innerHTML = '';
+  for (let i = 0; i < ST.nTrials; i++) {
+    const d = document.createElement('div');
+    d.className = 'tdot' + (i < ST.trialIndex ? ' done' : i === ST.trialIndex ? ' active' : '');
+    wrap.appendChild(d);
+  }
+}
+
+// User hits "Log null point"
+function confirmTrial() {
+  const nullVal   = ST.blueT;
+  const timestamp = new Date().toISOString();
+  const elapsed   = Date.now() - ST.sessionStart;
+  const baseline  = ST.trials.length > 0 ? ST.trials[0].nullVal : nullVal;
+  const battery   = getBattery();
+
+  ST.trials.push({
+    index:     ST.trialIndex + 1,
+    timestamp,
+    elapsedMs: elapsed,
+    nullVal,
+    deltaNullVal: +(nullVal - baseline).toFixed(5),
+    batteryLevel: battery.level,
+    batteryState: battery.state,
+    hfpHz:     ST.hfpHz,
+    cffHz:     ST.cffHz,
+    displayHz: ST.displayHz,
+    framesPerHalf: ST.framesPerHalf,
+  });
+
+  ST.trialIndex++;
+
+  if (ST.trialIndex >= ST.nTrials) {
+    // All done
+    stopTrialEngine();
+    showResults();
+  } else {
+    // Begin inter-trial soak
+    beginSoak();
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// AUDIO THERMAL LOAD
+// Silent oscillator draws DSP/CPU current during soak,
+// supplementing OLED white-screen heat with silicon heat.
+// No user-visible effect — just extra milliwatts.
+// ════════════════════════════════════════════════════════
+let _audioCtx = null;
+
+function startAudioLoad() {
+  try {
+    if (_audioCtx) { _audioCtx.close(); _audioCtx = null; }
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    gain.gain.value = 0;   // completely silent — just draws current
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    _audioCtx = ctx;
+  } catch(e) {}
+}
+
+function stopAudioLoad() {
+  if (_audioCtx) {
+    try { _audioCtx.close(); } catch(e) {}
+    _audioCtx = null;
+  }
+}
+
+// Soak: white overlay + countdown, then resume flicker
+function beginSoak() {
+  // Flicker keeps running underneath (canvas never stops)
+  // We just slam the white overlay on top
+  const totalSec = ST.interSoakSec;
+  let remaining  = totalSec;
+
+  document.getElementById('soak-count').textContent = remaining;
+  document.getElementById('soak-status-txt').textContent =
+    `Soak · trial ${ST.trialIndex + 1} of ${ST.nTrials} next`;
+
+  setSoak(true);    // ← single atomic DOM write, no race conditions
+  startAudioLoad(); // draw DSP/CPU current alongside white screen
+
+  clearSoakInterval();
+  soakInterval = setInterval(() => {
+    remaining--;
+    document.getElementById('soak-count').textContent = Math.max(0, remaining);
+    if (remaining <= 0) {
+      clearSoakInterval();
+      endSoak();
+    }
+  }, 1000);
+}
+
+function endSoak() {
+  stopAudioLoad();  // kill oscillator before flicker resumes
+  setSoak(false);   // ← single atomic DOM write
+  launchTrial();    // next trial immediately starts — no callbacks, no tokens
+}
+
+// ════════════════════════════════════════════════════════
+// BATTERY
+// ════════════════════════════════════════════════════════
+function getBattery() {
+  if (window._bat) return { level: window._bat.level, state: window._bat.charging ? 'charging' : 'discharging' };
+  return { level: null, state: null };
 }
 if (navigator.getBattery) {
   navigator.getBattery().then(b => {
-    window._batteryCache = b;
-    b.addEventListener('levelchange',    ()=>{ window._batteryCache=b; });
-    b.addEventListener('chargingchange', ()=>{ window._batteryCache=b; });
-  }).catch(()=>{});
+    window._bat = b;
+    b.addEventListener('levelchange',    () => { window._bat = b; });
+    b.addEventListener('chargingchange', () => { window._bat = b; });
+  }).catch(() => {});
 }
 
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // RESULTS
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 function showResults() {
-  buildResultsTable();
-  drawResultsChart();
+  buildTable();
+  drawChart();
   showScreen('s-results');
 }
 
-function buildResultsTable() {
+function buildTable() {
   const tbody = document.getElementById('trial-tbody');
   tbody.innerHTML = '';
-  const tc = {nominal:'#34d399',fair:'#f5c842',serious:'#fb923c',critical:'#f87171',unknown:'#5a5870'};
-  ST.trials.forEach((t,i) => {
-    const delta = i===0 ? '—' : (t.deltaNullVal>=0?'+':'')+t.deltaNullVal.toFixed(4);
-    const dc = i===0 ? '' : (t.deltaNullVal>0.005?'color:var(--orange)':t.deltaNullVal<-0.005?'color:var(--blue)':'');
+  ST.trials.forEach((t, i) => {
+    const delta = i === 0 ? '—' : (t.deltaNullVal >= 0 ? '+' : '') + t.deltaNullVal.toFixed(4);
+    const dc    = i === 0 ? '' : t.deltaNullVal > 0.005 ? 'color:var(--red)' : t.deltaNullVal < -0.005 ? 'color:var(--blue)' : '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="val">${t.index}</td>
+      <td class="v">${t.index}</td>
       <td>${new Date(t.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
-      <td class="val">${t.nullVal.toFixed(4)}</td>
-      <td class="val">${t.irTemp!==null?t.irTemp+'°':'—'}</td>
-      <td class="val" style="${dc}">${delta}</td>
-      <td>${t.batteryLevel!==null?Math.round(t.batteryLevel*100)+'%':'—'}</td>`;
+      <td class="v">${t.nullVal.toFixed(4)}</td>
+      <td class="v" style="${dc}">${delta}</td>
+      <td>${t.hfpHz}</td>
+      <td>${t.batteryLevel !== null ? Math.round(t.batteryLevel * 100) + '%' : '—'}</td>
+    `;
     tbody.appendChild(tr);
   });
   const n = ST.trials.length;
   if (n > 1) {
     const drift = ST.trials[n-1].nullVal - ST.trials[0].nullVal;
     document.getElementById('res-sub').textContent =
-      `${n} trials · total Δnull ${drift>=0?'+':''}${drift.toFixed(4)}`;
+      `${n} trials · Δnull ${drift >= 0 ? '+' : ''}${drift.toFixed(4)} · CFF ${ST.cffHz} Hz · HFP ${ST.hfpHz} Hz`;
   } else {
-    document.getElementById('res-sub').textContent = `${n} trial${n!==1?'s':''}`;
+    document.getElementById('res-sub').textContent = `${n} trial${n !== 1 ? 's' : ''}`;
   }
 }
 
-function drawResultsChart() {
+function drawChart() {
+  const wrap   = document.getElementById('chart-wrap');
   const canvas = document.getElementById('res-chart');
-  const ctx    = canvas.getContext('2d');
-  const W = Math.max(80, document.getElementById('chart-wrap').clientWidth - 52);
-  const H = 160;
+  const W      = Math.max(80, wrap.clientWidth - 24);
+  const H      = 140;
   canvas.width  = W * devicePixelRatio;
   canvas.height = H * devicePixelRatio;
-  canvas.style.width  = W+'px';
-  canvas.style.height = H+'px';
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
   ctx.scale(devicePixelRatio, devicePixelRatio);
 
-  const vals    = ST.trials.map(t=>t.nullVal);
-  const irTrials= ST.trials.filter(t=>t.irTemp!==null);
-  const irVals  = irTrials.map(t=>t.irTemp);
+  const vals = ST.trials.map(t => t.nullVal);
+  if (!vals.length) return;
 
-  // FIX 3: guard flat / single-point series
   const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
-  const rangeV = (rawMax-rawMin) || 0.001;
-  const minV   = Math.max(0, rawMin - rangeV*0.25);
-  const maxV   = Math.min(1, rawMax + rangeV*0.25);
-  const spanV  = (maxV-minV) || 0.001;
+  const span   = (rawMax - rawMin) || 0.01;
+  const minV   = Math.max(0, rawMin - span * 0.3);
+  const maxV   = Math.min(1, rawMax + span * 0.3);
+  const spanV  = (maxV - minV) || 0.01;
 
-  const pad={t:18,b:24,l:0,r:16};
-  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
-  function xAt(i){ return pad.l+(vals.length<2 ? pw/2 : (i/(vals.length-1))*pw); }
-  function yAt(v){ return pad.t+(1-(v-minV)/spanV)*ph; }
+  const pad = {t:12, b:22, l:36, r:12};
+  const pw  = W - pad.l - pad.r;
+  const ph  = H - pad.t - pad.b;
 
-  // Grid
-  ctx.strokeStyle='#1e1e28'; ctx.lineWidth=1;
-  [0,.25,.5,.75,1].forEach(f=>{
-    const v=minV+f*spanV, y=yAt(v);
-    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
-    ctx.fillStyle='#5a5870'; ctx.font='8px Space Mono,monospace';
-    ctx.fillText(v.toFixed(2),pad.l,y-3);
+  function xAt(i) { return pad.l + (vals.length < 2 ? pw/2 : (i / (vals.length - 1)) * pw); }
+  function yAt(v) { return pad.t + (1 - (v - minV) / spanV) * ph; }
+
+  // Grid lines
+  [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+    const v = minV + f * spanV;
+    const y = yAt(v);
+    ctx.strokeStyle = '#1a1a28'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#3e3c58'; ctx.font = '8px DM Mono, monospace';
+    ctx.fillText(v.toFixed(2), 2, y + 3);
   });
-  ST.trials.forEach((t,i)=>{ ctx.fillStyle='#5a5870'; ctx.fillText(`T${t.index}`,xAt(i)-5,H-6); });
 
-  // IR temp line (rescaled to fit same vertical space)
-  if (irVals.length>1) {
-    const mnIR=Math.min(...irVals), mxIR=Math.max(...irVals), spIR=(mxIR-mnIR)||1;
-    ctx.strokeStyle='#f8717166'; ctx.lineWidth=1.5; ctx.setLineDash([3,4]);
-    ctx.beginPath();
-    irTrials.forEach((t,i)=>{
-      const x=xAt(ST.trials.indexOf(t)), y=pad.t+(1-(t.irTemp-mnIR)/spIR)*ph;
-      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    });
-    ctx.stroke(); ctx.setLineDash([]);
-  }
+  // X labels
+  ST.trials.forEach((t, i) => {
+    ctx.fillStyle = '#3e3c58'; ctx.font = '8px DM Mono, monospace';
+    ctx.fillText(`T${t.index}`, xAt(i) - 4, H - 5);
+  });
 
-  // Null line
-  ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2;
+  // Line
+  ctx.strokeStyle = 'var(--blue, #4d9fff)'; ctx.lineWidth = 2;
   ctx.beginPath();
-  vals.forEach((v,i)=>{ i===0?ctx.moveTo(xAt(i),yAt(v)):ctx.lineTo(xAt(i),yAt(v)); });
+  vals.forEach((v, i) => { i === 0 ? ctx.moveTo(xAt(i), yAt(v)) : ctx.lineTo(xAt(i), yAt(v)); });
   ctx.stroke();
 
   // Dots
-  vals.forEach((v,i)=>{
-    const x=xAt(i),y=yAt(v);
-    ctx.beginPath(); ctx.arc(x,y,4.5,0,Math.PI*2); ctx.fillStyle='#3b82f6'; ctx.fill();
-    ctx.beginPath(); ctx.arc(x,y,2,  0,Math.PI*2); ctx.fillStyle='#fff';    ctx.fill();
+  vals.forEach((v, i) => {
+    const x = xAt(i), y = yAt(v);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fillStyle = '#4d9fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fillStyle = '#fff';    ctx.fill();
   });
-
-  ctx.font='8px Space Mono,monospace';
-  ctx.fillStyle='#3b82f6'; ctx.fillText('— null',W-50,12);
-  if(irVals.length>1){ ctx.fillStyle='#f87171'; ctx.fillText('- IR°',W-50,24); }
 }
 
-// ════════════════════════════════════════════════════════════
-// EXPORT
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// EXPORT CSV
+// ════════════════════════════════════════════════════════
 function exportCSV() {
-  const rows=[
-    ['thermal_hfp_export',new Date().toISOString()],[],
-    ['gamma',GAMMA],['flicker_hz',CFG.flickerHz],
-    ['yellow_luminance',CFG.yellowLum],['soak_sec',CFG.soakSec],
-    ['intersoak_sec',CFG.interSoakSec],
-    ['blue_rgb',CFG.blueRGB.join(';')],['yellow_rgb',CFG.yellowRGB.join(';')],
-    ['full_field',CFG.fullField?1:0],['blast_ms',CFG.blastMs],
-    ['display_hz',ST.detectedHz],['frames_per_half',ST.framesPerHalf],[],
-    ['trial','timestamp','elapsed_ms','null_blue_t','delta_null','ir_temp',
-     'thermal_state','battery_pct','battery_state','flicker_hz','frames_per_half','display_hz'],
+  const rows = [
+    ['hfp_export', new Date().toISOString()],
+    [],
+    ['cff_hz', ST.cffHz],
+    ['hfp_hz', ST.hfpHz],
+    ['display_hz', ST.displayHz],
+    ['frames_per_half', ST.framesPerHalf],
+    ['n_trials', ST.nTrials],
+    ['inter_soak_sec', ST.interSoakSec],
+    ['blue_rgb', ST.blueRGB.join(';')],
+    ['yellow_rgb', ST.yellowRGB.join(';')],
+    ['yellow_luminance', ST.yellowLum],
+    ['disk_pct', ST.diskPct],
+    ['gamma', GAMMA],
+    [],
+    ['trial', 'timestamp', 'elapsed_ms', 'null_blue_t', 'delta_null', 'hfp_hz', 'cff_hz', 'frames_per_half', 'display_hz', 'battery_pct', 'battery_state'],
   ];
-  ST.trials.forEach(t=>rows.push([
-    t.index,t.timestamp,t.elapsedMs,
-    t.nullVal.toFixed(6),t.deltaNullVal.toFixed(6),
-    t.irTemp!==null?t.irTemp:'',
-    t.thermalState,
-    t.batteryLevel!==null?(t.batteryLevel*100).toFixed(1):'',
-    t.batteryState||'',t.flickerHz,t.framesPerHalf,t.displayHz,
+  ST.trials.forEach(t => rows.push([
+    t.index, t.timestamp, t.elapsedMs,
+    t.nullVal.toFixed(6), t.deltaNullVal.toFixed(6),
+    t.hfpHz, t.cffHz, t.framesPerHalf, t.displayHz,
+    t.batteryLevel !== null ? (t.batteryLevel * 100).toFixed(1) : '',
+    t.batteryState || '',
   ]));
-  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=`thermal-hfp-${Date.now()}.csv`; a.click();
+  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `hfp-${Date.now()}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
 
-// ════════════════════════════════════════════════════════════
-// RESET — FIX 2: sessionStart reset here too
-// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+// RESET
+// ════════════════════════════════════════════════════════
 function resetApp() {
-  stopAll(); clearStorage();
-  ST.trials=[]; ST.trialIndex=0;
-  ST.sessionStart=Date.now();
-  ST.pendingSnapshot=null;
+  stopTrialEngine();
+  if (trialLoop) { trialLoop.stop(); trialLoop = null; }
+  trialCanvas = null; trialCtx = null;
+  ST.trials = []; ST.trialIndex = 0; ST.sessionStart = 0;
   showScreen('s-home');
 }
 
-window.addEventListener('resize',()=>{
-  if(soakCtx){ soakCanvas.width=window.innerWidth; soakCanvas.height=window.innerHeight;
-    if(document.getElementById('s-soak').classList.contains('active')){ soakCtx.fillStyle='#fff'; soakCtx.fillRect(0,0,soakCanvas.width,soakCanvas.height); }
+// ════════════════════════════════════════════════════════
+// RESIZE
+// ════════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  if (cffCanvas && document.getElementById('s-cff').classList.contains('active')) {
+    cffCanvas.width  = window.innerWidth;
+    cffCanvas.height = window.innerHeight;
   }
-  if(trialCtx&&document.getElementById('s-trial').classList.contains('active')){
-    trialCanvas.width=window.innerWidth; trialCanvas.height=window.innerHeight;
+  if (trialCanvas && document.getElementById('s-trial').classList.contains('active')) {
+    trialCanvas.width  = window.innerWidth;
+    trialCanvas.height = window.innerHeight;
+  }
+  if (document.getElementById('s-results').classList.contains('active')) {
+    drawChart();
   }
 });
-
-checkResume();
 </script>
 </body>
 </html>
